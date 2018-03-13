@@ -11,7 +11,7 @@ var checker *Checker
 
 func init() {
 	checker = &Checker{}
-	checker.ruler.defaultRegexBuilt = make(map[string]*regexp.Regexp)
+	checker.ruler.defaultRegexBuilder = make(map[string]*regexp.Regexp)
 	checker.ruler.RegexBuilder =make(map[string]*regexp.Regexp)
 	fmt.Println("分配成功")
 	regexes := map[string]string{
@@ -26,7 +26,7 @@ func init() {
 	for k,v:=range regexes{
 		r, _ := regexp.Compile(v)
 		k=strings.ToLower(k)
-		checker.ruler.defaultRegexBuilt[k] = r
+		checker.ruler.defaultRegexBuilder[k] = r
 	}
 	fmt.Println("注入默认成功")
 

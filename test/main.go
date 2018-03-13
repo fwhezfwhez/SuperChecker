@@ -3,6 +3,7 @@ package main
 import (
 	"superChecker"
 	"fmt"
+	"log"
 )
 
 type User struct {
@@ -14,17 +15,25 @@ type User struct {
 func main(){
 	user := User{
 		"fwhez",
-		"a123gfdsd",
-		"88545758",
-		"你好",
+		"a1dfdasfsdf",
+		"12578854875",
+		"中",
 	}
 	checker :=superChecker.GetChecker()
 	checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
 	checker.AddRegex("length","^[\\s\\S]{0,20}$")
 	checker.AddRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
-	result,err :=checker.SuperCheck(user)
+	result,msg,err :=checker.SuperCheck(user)
 	if err!=nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
-	fmt.Println("匹配结果:",result)
+	fmt.Println("匹配结果:",result,"信息:",msg)
+
+	checker.AddDefaultRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
+
+	checker.ListDefault()
+
+	checker.ListRegexBuilder()
+
+	checker.ListAll()
 }
