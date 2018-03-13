@@ -14,7 +14,7 @@ type User struct {
 }
 func main(){
 	user := User{
-		"fwhez",
+		"",
 		"a1dfdasfsdf",
 		"12578854875",
 		"中",
