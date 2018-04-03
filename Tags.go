@@ -5,3 +5,6 @@ type T struct {
 	Phone string `superChecker:"mobilephone|telephone"`
 	Text string `superChecker:"length,chineseOnly"`
 }
+type T2 struct{
+	
+}
