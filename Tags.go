@@ -6,5 +6,5 @@ type T struct {
 	Text string `superChecker:"length,chineseOnly"`
 }
 type T2 struct{
-	
+
 }
