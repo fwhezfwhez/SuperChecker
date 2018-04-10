@@ -193,3 +193,11 @@ func rollingCheck(checker *Checker, valueStr string, tagValue string, symbol str
 	return true, nil
 
 }
+
+func(checker *Checker) Check(input string,regex string) (bool,error){
+	r, er := regexp.Compile(regex)
+	if er!=nil{
+		return false,er
+	}
+	return r.MatchString(input),nil
+}

@@ -36,4 +36,7 @@ func main(){
 	checker.ListRegexBuilder()
 
 	checker.ListAll()
+
+	ok,er:=checker.Check("10000124","^[0-9]{8}$")
+	fmt.Println(ok,er)
 }
