@@ -7,17 +7,17 @@ import (
 )
 
 type User struct {
-	UserName string //`superChecker:"userName" json:"userName"`
-	Password string //`superChecker:"password"`
-	Phone string //`superChecker:"mobilephone|telephone"`
+	UserName string `superChecker:"userName" json:"userName"`
+	Password string `superChecker:"password"`
+	Phone string  `superChecker:"mobilephone|telephone"`
 	Text string //`superChecker:"length,chineseOnly,notNull"`
 }
 func main(){
 	user := User{
-		"",
+		"d",
 		"a1dfdasfsdf",
-		"12578854875",
-		"中",
+		"undefine",
+		"undefined",
 	}
 	checker :=superChecker.GetChecker()
 	checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")

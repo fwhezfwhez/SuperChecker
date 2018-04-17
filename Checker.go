@@ -120,6 +120,9 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 	for i := 0; i < vType.NumField(); i++ {
 		valueStr := vValue.Field(i).String()
 		tagValue := vType.Field(i).Tag.Get("superChecker")
+		if valueStr=="undefined"||valueStr=="undefine"{
+			continue
+		}
 		if tagValue==""{
 			continue
 		}
