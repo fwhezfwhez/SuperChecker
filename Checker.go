@@ -115,10 +115,14 @@ func (checker *Checker) GetDefaultBuilt() map[string]*regexp.Regexp {
 func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
-	//fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
+	fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
+	fmt.Println(fmt.Sprintf("input的值是%v:", vValue))
 	for i := 0; i < vType.NumField(); i++ {
 		valueStr := vValue.Field(i).String()
 		tagValue := vType.Field(i).Tag.Get("superChecker")
+		if tagValue==""{
+			continue
+		}
 		tagValue = strings.ToLower(tagValue)
 		if strings.Contains(tagValue, "|") {
 			if ok, err := rollingCheck(checker, valueStr, tagValue, "|"); !ok {

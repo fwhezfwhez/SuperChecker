@@ -7,10 +7,10 @@ import (
 )
 
 type User struct {
-	UserName string `superChecker:"userName" json:"userName"`
-	Password string `superChecker:"password"`
-	Phone string `superChecker:"mobilephone|telephone"`
-	Text string `superChecker:"length,chineseOnly,notNull"`
+	UserName string //`superChecker:"userName" json:"userName"`
+	Password string //`superChecker:"password"`
+	Phone string //`superChecker:"mobilephone|telephone"`
+	Text string //`superChecker:"length,chineseOnly,notNull"`
 }
 func main(){
 	user := User{
