@@ -166,7 +166,7 @@ func (checker *Checker) FormatCheck(input interface{}) (bool,string,error){
 	for i := 0; i < vType.NumField(); i++ {
 		valueStr := vValue.Field(i).String()
 		tagValue := vType.Field(i).Tag.Get("validate")
-		if valueStr=="undefined"||valueStr=="undefine"{
+		if valueStr=="undefined"||valueStr=="undefine"||valueStr==""{
 			continue
 		}
 		if tagValue==""{
