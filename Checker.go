@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"github.com/pkg/errors"
+	"strconv"
+	"time"
 )
 
 type Checker struct {
@@ -16,6 +18,8 @@ type Ruler struct {
 	defaultRegexBuilder map[string]*regexp.Regexp
 }
 
+var int_type = []string{"int","int32","int64","int8"}
+var float_type = []string{"float","float32","float64"}
 func GetChecker() *Checker{
 	checker := &Checker{}
 	checker.ruler.defaultRegexBuilder = make(map[string]*regexp.Regexp)
@@ -112,6 +116,8 @@ func (checker *Checker) GetDefaultBuilt() map[string]*regexp.Regexp {
 	return checker.ruler.defaultRegexBuilder
 }
 
+
+//Only support for string input using regex
 func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
@@ -149,6 +155,135 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 		}
 	}
 	return true, "匹配成功", nil
+}
+
+//type check
+func (checker *Checker) FormatCheck(input interface{}) (bool,string,error){
+	vType := reflect.TypeOf(input)
+	vValue := reflect.ValueOf(input)
+	fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
+	fmt.Println(fmt.Sprintf("input的值是%v:", vValue))
+	for i := 0; i < vType.NumField(); i++ {
+		valueStr := vValue.Field(i).String()
+		tagValue := vType.Field(i).Tag.Get("validate")
+		if valueStr=="undefined"||valueStr=="undefine"{
+			continue
+		}
+		if tagValue==""{
+			continue
+		}
+
+
+		if strings.Contains(tagValue,",") {
+			tmp := strings.Split(tagValue,",")
+			tagValue = tmp[0]
+			rule := tmp[1]
+			if IsInt(tagValue) {
+				if rule!=""{
+					tmp2:=strings.Split(rule,":")
+					if len(tmp2)!=2 {
+						return false,"",errors.New("notation requires number1:number2,but got "+rule)
+					}
+					v,er:=strconv.Atoi(valueStr)
+					if er != nil {
+						return false, vType.Field(i).Name +" format required int but got " + valueStr,nil
+					}
+					if tmp2[0]!=""{
+						min,er := strconv.Atoi(tmp2[0])
+						if er!=nil {
+							return false,"",errors.New(vType.Field(i).Name+" notation rule required number:number but get "+tmp2[0])
+						}
+						if v<min {
+							return false, vType.Field(i).Name+" int value required bigger than "+tmp2[0]+" but get "+valueStr,nil
+						}
+					}
+					if tmp2[1]!=""{
+						max,er := strconv.Atoi(tmp2[1])
+						if er!=nil {
+							return false,"",errors.New(vType.Field(i).Name+" notation rule required number:number but get "+tmp2[1])
+						}
+						if v>max {
+							return false, vType.Field(i).Name+" int value required smaller than "+tmp2[1]+" but get "+valueStr,nil
+						}
+					}
+
+				}else{
+					_,er:=strconv.Atoi(valueStr)
+					if er != nil {
+						return false, vType.Field(i).Name +" format required int but got " + valueStr,nil
+					}
+				}
+			}else if IsFloat(tagValue){
+				if rule!="" {
+					tmp2 := strings.Split(rule, ":")
+					if len(tmp2) != 2 {
+						return false, "", errors.New(" notation requires float_number1:float_number2,but got " + rule)
+					}
+					v,er := strconv.ParseFloat(valueStr, 64)
+					if er != nil {
+						return false, vType.Field(i).Name + " format required float but got " + valueStr, nil
+					}
+					if tmp2[0] != "" {
+						min, er := strconv.ParseFloat(tmp2[0], 64)
+						if er != nil {
+							return false, "", errors.New(vType.Field(i).Name + " notation rule required float_number:float_number but get " + tmp2[0])
+						}
+						if v < min {
+							return false, vType.Field(i).Name + " float value required bigger than" + tmp2[0] + " but get " + valueStr, nil
+						}
+					}
+					if tmp2[1] != "" {
+						max, er :=  strconv.ParseFloat(tmp2[1], 64)
+						if er != nil {
+							return false, "", errors.New(vType.Field(i).Name + " notation rule required number:number but get " + tmp2[1])
+						}
+						if v > max {
+							return false, vType.Field(i).Name + " float value required smaller than " + tmp2[1] + "but get " + valueStr, nil
+						}
+					}
+				}else {
+					_,er := strconv.ParseFloat(valueStr, 64)
+					if er != nil {
+						return false, vType.Field(i).Name +"format required float but got " + valueStr,nil
+					}
+				}
+			}else if tagValue =="time.Time"{
+				//"2006/1/2 15:04:05"
+				if rule != "" {
+					_, er := time.ParseInLocation(rule, valueStr, time.Local)
+					if er != nil {
+						return false, "time format requires " + rule + " but got " + valueStr,nil
+					}
+				}else{
+					_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
+					if er != nil {
+						return false, "time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr,nil
+					}
+				}
+			}
+		}else{
+			if IsInt(tagValue) {
+				_,er:=strconv.Atoi(valueStr)
+					if er != nil {
+						return false, vType.Field(i).Name +"format required int but got " + valueStr,nil
+					}
+			}else if IsFloat(tagValue){
+				_,er := strconv.ParseFloat(valueStr, 64)
+				if er != nil {
+					return false, vType.Field(i).Name +"format required float but got " + valueStr,nil
+				}
+
+			}else if tagValue =="time.Time"{
+				//"2006/1/2 15:04:05"
+				_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
+				if er != nil {
+					return false, "time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr,nil
+				}
+			}
+		}
+
+	}
+	return true,"",nil
 }
 
 func checkRegex(input string, regex *regexp.Regexp) bool {
@@ -207,4 +342,21 @@ func(checker *Checker) Check(input string,regex string) (bool,error){
 		return false,er
 	}
 	return r.MatchString(input),nil
+}
+
+func IsInt(in string) bool{
+	for _,v :=range int_type{
+		if v== in {
+			return true
+		}
+	}
+	return false
+}
+func IsFloat(in string)bool{
+	for _,v :=range float_type{
+		if v== in {
+			return true
+		}
+	}
+	return false
 }

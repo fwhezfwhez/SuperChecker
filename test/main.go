@@ -7,17 +7,24 @@ import (
 )
 
 type User struct {
-	UserName string `superChecker:"userName" json:"userName"`
+	UserName string `superChecker:"userName" json:"userName" `
 	Password string `superChecker:"password"`
 	Phone string  `superChecker:"mobilephone|telephone"`
 	Text string //`superChecker:"length,chineseOnly,notNull"`
+
+	Age string `validate:"int,0:200"`
+	Salary string `validate:"float,0:"`
+	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
 }
 func main(){
 	user := User{
-		"d",
-		"a1dfdasfsdf",
-		"undefine",
-		"undefined",
+		UserName:"d",
+		Password:"a1dfdasfsdf",
+		Phone:"undefine",
+		Text:"undefined",
+		Age:"200",
+		Salary:"5",
+		InTime:"2018/1/2 15:04:05",
 	}
 	checker :=superChecker.GetChecker()
 	checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
@@ -39,4 +46,11 @@ func main(){
 
 	ok,er:=checker.Check("10000124","^[0-9]{8}$")
 	fmt.Println(ok,er)
+
+	ok,msg,er =checker.FormatCheck(user)
+	if er!=nil{
+		fmt.Println(er.Error())
+		return
+	}
+	fmt.Println("格式验证结果:",ok,"msg:",msg)
 }
