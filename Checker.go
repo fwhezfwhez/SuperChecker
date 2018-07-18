@@ -157,7 +157,7 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 	return true, "匹配成功", nil
 }
 
-//type check
+//validate
 func (checker *Checker) FormatCheck(input interface{}) (bool,string,error){
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
@@ -284,6 +284,10 @@ func (checker *Checker) FormatCheck(input interface{}) (bool,string,error){
 
 	}
 	return true,"",nil
+}
+
+func (checker *Checker) Validate(input interface{}) (bool,string,error) {
+	return checker.FormatCheck(input)
 }
 
 func checkRegex(input string, regex *regexp.Regexp) bool {

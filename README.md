@@ -1,54 +1,78 @@
 一款轻巧方便的注解式数据验证
 ##Example
 ```go
-    package main
-    
-    import (
-        "superChecker"
-        "fmt"
-        "github.com/lunny/log"
-    )
-    //superChecker的标签值就是需要匹配的key，逗号","表示与,"|"表示或
-    type User struct {
-        UserName string `superChecker:"userName" json:"userName"`
-        Password string `superChecker:"password"`
-        Phone string `superChecker:"mobilephone|telephone"`
-        Text string `superChecker:"length,chineseOnly,notNull"`
-    }
-    func main(){
-        user := User{
-            "fwhez",
-            "a1dfdasfsdf",
-            "12578854875",
-            "中",
-        }
-        //获取checker对象
-        checker :=superChecker.GetChecker()
-        
-        //添加自定义正则,key值大小写不敏感，与tag的标签值对应
-        //细心的读者可以发现，不存在key为username的regex，为什么可以匹配上呢?
-        //因为checker有两个匹配池，默认添加的都是自定义池，默认池在init.go里，可以去看看
-        //匹配优先选取自定义池，也就是说，当自定义池和默认池同时定义username，则会取自定义池的进行匹配
-        checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
-        checker.AddRegex("length","^[\\s\\S]{0,20}$")
-        checker.AddRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
-        result,msg,err :=checker.SuperCheck(user)
-        if err!=nil {
-            log.Println(err)
-        }
-        fmt.Println("匹配结果:",result,"信息:",msg)
-    }
+package main
+
+import (
+	"superChecker"
+	"fmt"
+	"log"
+)
+
+type User struct {
+	UserName string `superChecker:"userName" json:"userName" `
+	Password string `superChecker:"password"`
+	Phone string  `superChecker:"mobilephone|telephone"`
+	Text string //`superChecker:"length,chineseOnly,notNull"`
+
+	Age string `validate:"int,0:200"`
+	Salary string `validate:"float,0:"`
+	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
+}
+func main(){
+	user := User{
+		UserName:"d",
+		Password:"a1dfdasfsdf",
+		Phone:"undefine",
+		Text:"undefined",
+		Age:"200",
+		Salary:"5",
+		InTime:"2018/1/2 15:04:05",
+	}
+	checker :=superChecker.GetChecker()
+	checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
+	checker.AddRegex("length","^[\\s\\S]{0,20}$")
+	checker.AddRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
+	result,msg,err :=checker.SuperCheck(user)
+	if err!=nil {
+		log.Println(err)
+	}
+	fmt.Println("匹配结果:",result,"信息:",msg)
+
+	checker.AddDefaultRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
+
+	checker.ListDefault()
+
+	checker.ListRegexBuilder()
+
+	checker.ListAll()
+
+	ok,er:=checker.Check("10000124","^[0-9]{8}$")
+	fmt.Println(ok,er)
+
+	ok,msg,er =checker.FormatCheck(user)
+	if er!=nil{
+		fmt.Println(er.Error())
+		return
+	}
+	fmt.Println("格式验证结果:",ok,"msg:",msg)
+}
 ```
 
 ####使用步骤
 1. 给需要验证的结构体添加superChecker注解与Tag值，类比于userName的json注解,
 值表示正则表达式的索引key
+**目前只支持int,float,time.Time的Validate,int和float取区间number1:number2(包括边界),时间直接书写格式，不限定具体时间**
 ```go
    type User struct {
-   	UserName string `superChecker:"userName"`
-   	Password string `superChecker:"password"`
-   	Phone string `superChecker:"mobilephone|telephone"`
-   	Text string `superChecker:"length,chineseOnly,notNull"`
+	UserName string `superChecker:"userName" json:"userName" `
+	Password string `superChecker:"password"`
+	Phone string  `superChecker:"mobilephone|telephone"`
+	Text string //`superChecker:"length,chineseOnly,notNull"`
+
+	Age string `validate:"int,0:200"`
+	Salary string `validate:"float,0:"`
+	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
    }
 ```
 2. 创建checker对象，并添加以tag值为key的正则表达式
@@ -65,6 +89,12 @@
                 log.Println(err)
             }
             fmt.Println("匹配结果:",result,"信息:",msg)
+      ok,msg,er =checker.FormatCheck(user) //checker.Validate(user)  is the same
+      if er!=nil{
+            		fmt.Println(er.Error())
+            		return
+       }
+       fmt.Println("格式验证结果:",ok,"msg:",msg)
 ```
 结果格式:
 失败

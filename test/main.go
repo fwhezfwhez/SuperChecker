@@ -12,8 +12,8 @@ type User struct {
 	Phone string  `superChecker:"mobilephone|telephone"`
 	Text string //`superChecker:"length,chineseOnly,notNull"`
 
-	Age string `validate:"int,0:200"`
-	Salary string `validate:"float,0:"`
+	Age string
+	Salary string `validate:"float"`
 	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
 }
 func main(){
