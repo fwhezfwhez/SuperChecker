@@ -7,6 +7,7 @@ import (
 )
 
 type User struct {
+	K []int
 	UserName string `superChecker:"userName" json:"userName" `
 	Password string `superChecker:"password"`
 	Phone string  `superChecker:"mobilephone|telephone"`
