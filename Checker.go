@@ -185,7 +185,7 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 	fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
 	fmt.Println(fmt.Sprintf("input的值是%v:", vValue))
 	for i := 0; i < vType.NumField(); i++ {
-		tagValue := vType.Field(i).Tag.Get("superChecker")
+		tagValue := vType.Field(i).Tag.Get("validate")
 		tagValue = strings.ToLower(tagValue)
 		if tagValue == "" {
 			continue
@@ -284,7 +284,7 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 						return false, vType.Field(i).Name + "format required float but got " + valueStr, nil
 					}
 				}
-			} else if tagValue == "time.Time" {
+			} else if tagValue == "time.time" {
 				//"2006/1/2 15:04:05"
 				if rule != "" {
 					_, er := time.ParseInLocation(rule, valueStr, time.Local)
@@ -294,7 +294,7 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 				} else {
 					_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
 					if er != nil {
-						return false, "time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr, nil
+						return false, "not set time rule,default time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr, nil
 					}
 				}
 			}

@@ -7,6 +7,7 @@ import (
 )
 
 type User struct {
+	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
 	K []int
 	Phone string  `superChecker:"mobilephone|telephone"`
 	UserName string `superChecker:"userName" json:"userName" `
@@ -17,7 +18,7 @@ type User struct {
 
 	Age string  `validate:"int"`
 	Salary string `validate:"float"`
-	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
+
 }
 func main(){
 	user := User{
@@ -27,7 +28,7 @@ func main(){
 		Text:"undefined",
 		Age:"",
 		Salary:"5",
-		InTime:"2018/1/2 15:04:05",
+		InTime:"2018-5-2",
 		Number:9,
 	}
 	checker :=superChecker.GetChecker()
@@ -58,8 +59,7 @@ func main(){
 	fmt.Println("-------FormatCheck(in interface{})---------------------------------------------------------------------------------------------")
 	ok,msg,er =checker.FormatCheck(user)
 	if er!=nil{
-		fmt.Println(er.Error())
-		return
+		log.Println(er.Error())
 	}
 	fmt.Println("格式验证结果:",ok,"msg:",msg)
 }
