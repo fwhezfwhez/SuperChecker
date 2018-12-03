@@ -3,7 +3,7 @@ a validator and checker tool. validator works for validating whether the input d
 # superchecker
 [![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/fwhezfwhez/SuperChecker)
 
-##Example
+## Example
 ```go
 package main
 
@@ -102,6 +102,8 @@ func main() {
 	fmt.Println("-------FormatCheck(in interface{})/Validate(in interface{})-------")
 	// validate those fields whose tag is 'validate'
 	ok, msg, er = checker.FormatCheck(user)
+	//ok, msg, er = checker.Validate(user)
+
 	if er != nil {
 		log.Println(er.Error())
 	}
@@ -113,7 +115,7 @@ func main() {
 
 ```
 
-#### How to specific superchecker tag?
+## How to specific superchecker tag?
 **superChecker**:
 The tag value is the key added by **AddRegex** or **AddDefaultRegex**, while the former one is the added pool which has higher privalage than the latter one(when both of them has a key 'password', than use the regex in added pool).
 
@@ -140,7 +142,7 @@ When a field will fit several regex rules, use it like
 
 **I'm sorry but checker doesn't support '|' and ',' mixed like `key1,key2|key3`, also doesn't support quoted like 'key1,key2,(key3,key4)'. Soon the checker will give its solutions to this situation**
 
-#### How to specific validate tag?
+## How to specific validate tag?
 **validate**:
 The tag value consists of two parts, type and rule(key).
 type and rule used like:
@@ -156,7 +158,7 @@ type User struct{
 
 	// InTime    time.Time       `validate:"time.Time"`// golang support deliver the origin time type ,it's good to use time.Time field to bind data
 	// if insist on using string type to bind time data,use it like:
-	InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"` // InTimeStr should fit the format '2006.01.2 15:04:05'
+    InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"` // InTimeStr should fit the format '2006.01.2 15:04:05'
 }
 ```
 The tag value like 'time.Time','int','float' is the type ,and the latter string words is its rule,like '0:200'.
@@ -177,7 +179,7 @@ Salary `validate:"float,:120"`
 //Salary `validate:"float64,:120"`
 //Salary `validate:"decimal,:120"`
 ```
-#### How to design a function to validate data?
+## How to design a function to validate data?
 ```go
 ...
 type User struct {
