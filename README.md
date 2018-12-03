@@ -1,128 +1,205 @@
-一款轻巧方便的注解式数据验证
+a validator and checker tool. validator works for validating whether the input data is valid, and superchecker works for checking its value by regex
+
+# superchecker
+[![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/fwhezfwhez/SuperChecker)
+
 ##Example
 ```go
 package main
 
 import (
-	"superChecker"
+	"errors"
 	"fmt"
+	"github.com/shopspring/decimal"
 	"log"
+	"strings"
+	"superChecker"
+	"time"
 )
 
 type User struct {
+    // validate via func pool
+	Introduce    string       `validate:"func,introduction"`
+
+    // validate via validation tag
+	InTime    time.Time       `validate:"time.Time,2006.01.2 15:04:05"`
+	InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"`
+	Age       int             `validate:"int,:140"`
+	Salary    float64         `validate:"float"`
+	Deci      decimal.Decimal `validate:"float,10:100"`
+
+    // jump
+	K        []int
+
+    // check via regex
+	Phone    string `superChecker:"mobilephone|telephone"`
 	UserName string `superChecker:"userName" json:"userName" `
 	Password string `superChecker:"password"`
-	Phone string  `superChecker:"mobilephone|telephone"`
-	Text string //`superChecker:"length,chineseOnly,notNull"`
-
-	Age string `validate:"int,0:200"`
-	Salary string `validate:"float,0:"`
-	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
+	NotNull  string `superChecker:"notnull"`
+	Text   string //`superChecker:"length,chineseOnly,notNull"`
+	Number int64 `superChecker:"mobilephone"`
 }
-func main(){
+
+func main() {
+    // build a testing data
 	user := User{
-		UserName:"d",
-		Password:"a1dfdasfsdf",
-		Phone:"undefine",
-		Text:"undefined",
-		Age:"200",
-		Salary:"5",
-		InTime:"2018/1/2 15:04:05",
+		Introduce: "I am flying",
+		InTime:    time.Now(),
+		InTimeStr: time.Now().Format("2006.01-2 15:04:05"),
+		UserName:  "d",
+		Password:  "a1dfdasfsdf",
+		Phone:     "13875847584",
+		Text:      "undefined",
+		Age:       130,
+		Salary:    3000.9,
+		Number:    18970937633,
+		NotNull:   "3",
+		Deci:      decimal.NewFromFloat(11.9),
 	}
-	checker :=superChecker.GetChecker()
-	checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
-	checker.AddRegex("length","^[\\s\\S]{0,20}$")
-	checker.AddRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
-	result,msg,err :=checker.SuperCheck(user)
-	if err!=nil {
+    // init a checker object
+	checker := superChecker.GetChecker()
+
+    // add regex rule into regex pool
+	checker.AddRegex("passWoRd", "^[\\s\\S]{6,}$")
+	checker.AddRegex("length", "^[\\s\\S]{0,20}$")
+	checker.AddRegex("chineseOnly", "^[\u4E00-\u9FA5]*$")
+
+    // add func into func pool
+	checker.AddFunc(func(in interface{})(bool,string,error){
+		v,ok := in.(string)
+		if !ok {
+			return false, "assertion error,in is not a string type", errors.New("assertion error,in is not a string type")
+		}
+		// deal with v
+		// length limit
+		if len(v) >1000 {
+			return false, fmt.Sprintf("max len is 1000,but got %d", len(v)), nil
+		}
+		// abuse words limit
+		if strings.Contains(v,"fuck") {
+			return false, fmt.Sprintf("'%s' contains bad words '%s'", v, "fuck"), nil
+		}
+		return true,"success",nil
+	}, "introduction")
+
+    // add regex rule into default pool
+	checker.AddDefaultRegex("chineseOnly", "^[\u4E00-\u9FA5]*$")
+	fmt.Println("-------Check(in string,rule string)---------")
+
+    // regex checks a single string data
+	ok, er := checker.Check("10000124", "^[0-9]{8}$")
+	fmt.Println(ok, er)
+
+	// check those fields whose tag is 'superChecker'
+	result, msg, err := checker.SuperCheck(user)
+	if err != nil {
 		log.Println(err)
 	}
-	fmt.Println("匹配结果:",result,"信息:",msg)
+	fmt.Println("-------SuperCheck(in interface{})-------")
 
-	checker.AddDefaultRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
+	fmt.Println("匹配结果:", result, "信息:", msg)
 
-	checker.ListDefault()
-
-	checker.ListRegexBuilder()
-
-	checker.ListAll()
-
-	ok,er:=checker.Check("10000124","^[0-9]{8}$")
-	fmt.Println(ok,er)
-
-	ok,msg,er =checker.FormatCheck(user)
-	if er!=nil{
-		fmt.Println(er.Error())
-		return
+	fmt.Println("-------FormatCheck(in interface{})/Validate(in interface{})-------")
+	// validate those fields whose tag is 'validate'
+	ok, msg, er = checker.FormatCheck(user)
+	if er != nil {
+		log.Println(er.Error())
 	}
-	fmt.Println("格式验证结果:",ok,"msg:",msg)
+	fmt.Println("格式验证结果:", ok, "msg:", msg)
+
+	fmt.Println("-------listAll----------")
+	checker.ListAll()
 }
+
 ```
 
-####使用步骤
-1. 给需要验证的结构体添加superChecker注解与Tag值，类比于userName的json注解,
-值表示正则表达式的索引key
-**目前只支持int,float,time.Time的Validate,int和float取区间number1:number2(包括边界),时间直接书写格式，不限定具体时间**
+#### How to specific superchecker tag?
+**superChecker**:
+The tag value is the key added by **AddRegex** or **AddDefaultRegex**, while the former one is the added pool which has higher privalage than the latter one(when both of them has a key 'password', than use the regex in added pool).
+
 ```go
    type User struct {
-	UserName string `superChecker:"userName" json:"userName" `
-	Password string `superChecker:"password"`
-	Phone string  `superChecker:"mobilephone|telephone"`
-	Text string //`superChecker:"length,chineseOnly,notNull"`
-
-	Age string `validate:"int,0:200"`
-	Salary string `validate:"float,0:"`
-	InTime string `validate:"time.Time,2006/1/2 15:04:05"`
+	Password string `superChecker:"password"
    }
-```
-2. 创建checker对象，并添加以tag值为key的正则表达式
- ```go
-    //获取checker对象
-     checker :=superChecker.GetChecker()
-     checker.AddRegex("passWoRd","^[\\s\\S]{6,}$")
-     checker.AddRegex("length","^[\\s\\S]{0,20}$")
-```
-3.进行匹配,并输出结果
-```go
-     result,msg,err :=checker.SuperCheck(user)
-            if err!=nil {
-                log.Println(err)
-            }
-            fmt.Println("匹配结果:",result,"信息:",msg)
-      ok,msg,er =checker.FormatCheck(user) //checker.Validate(user)  is the same
-      if er!=nil{
-            		fmt.Println(er.Error())
-            		return
-       }
-       fmt.Println("格式验证结果:",ok,"msg:",msg)
-```
-结果格式:
-失败
-```go
-分配成功
-注入默认成功
-匹配结果: false 信息: Phone 匹配失败
-```
-成功
-```
-分配成功
-注入默认成功
-匹配结果: true 信息: 匹配成功
+   ...
+   checker.AddRegex("password", "^[\\s\\S]{6,}$")
 ```
 
-##特殊操作
+When a field will fit several regex rules, use it like
 ```go
-        //1.给默认池添加正则
-        checker.AddDefaultRegex("chineseOnly","^[\u4E00-\u9FA5]*$")
-    
-        //2.显示所有默认池k，v
-        checker.ListDefault()
-        //3.显示所有自定义池k,v
-        checker.ListRegexBuilder()
-        //4.显示上面两个
-        checker.ListAll()
+   type User struct {
+	Phone string `superChecker:"phone|mobilePhone"
+	Introduction string `superChecker:"length,noAbuse,noChinese"`
+   }
+   checker.AddRegex("phone",  "^[0-9]{8}$")
+   checker.AddRegex("mobilePhone","^1[0-9]{10}$")
+   ...
 ```
-**注意**：
-1. checker里存放的正则是编译过的，而不是string格式,所以打印出来的v值没有意义，用户可以看看k有哪些提供参考
-2. 可以同时存在多个","或者多个"|"，但是不能,|同时出现在一个标签里
-3. 不支持括号运算级别
+`key1|key2|key3` means the field(Phone) should fit one of keys(phone,mobilePhone), the or logic.
+`key1,key2,key3` means the field(Introduction) should both fit all of the keys(length,noAbuse,noChinese)
+
+**I'm sorry but checker doesn't support '|' and ',' mixed like `key1,key2|key3`, also doesn't support quoted like 'key1,key2,(key3,key4)'. Soon the checker will give its solutions to this situation**
+
+#### How to specific validate tag?
+**validate**:
+The tag value consists of two parts, type and rule(key).
+type and rule used like:
+```go
+type User struct{
+    Age int `validate:"int,0:200"`  // age should be integer and between 0 and 200
+	// Age int `validate:"int,:200"`  // age should be integer and less than 200
+	// Age int `validate:"int,0:"`  // age should be integer and bigger than 0
+
+    Salary float64 `validate:"float,0:1000000000"`  // Salary  should be float type(float32,float64) and between 0 and 1000000000
+	// Salary float64 `validate:"float,:1000000000"`  // Salary  should be float type(float32,float64) and less than 1000000000
+	// Salary float64 `validate:"float,0:"`  // Salary  should be float type(float32,float64) and bigger than 0
+
+	// InTime    time.Time       `validate:"time.Time"`// golang support deliver the origin time type ,it's good to use time.Time field to bind data
+	// if insist on using string type to bind time data,use it like:
+	InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"` // InTimeStr should fit the format '2006.01.2 15:04:05'
+}
+```
+The tag value like 'time.Time','int','float' is the type ,and the latter string words is its rule,like '0:200'.
+**int means int type ,it's ok to write like:**
+```go
+...
+Age `validate:"int,:120"`
+//Age `validate:"int8,:120"`
+//Age `validate:"int16,:120"`
+//Age `validate:"int32,:120"`
+//Age `validate:"int64,:120"`
+```
+**so does float types**
+```go
+...
+Salary `validate:"float,:120"`
+//Salary `validate:"float32,:120"`
+//Salary `validate:"float64,:120"`
+//Salary `validate:"decimal,:120"`
+```
+#### How to design a function to validate data?
+```go
+...
+type User struct {
+	Introduce    string       `validate:"func,introduction"`
+}
+...
+checker.AddFunc(func(in interface{})(bool,string,error){
+		v,ok := in.(string)
+		if !ok {
+			return false, "assertion error,in is not a string type", errors.New("assertion error,in is not a string type")
+		}
+		// deal with v
+		// length limit
+		if len(v) >1000 {
+			return false, fmt.Sprintf("max len is 1000,but got %d", len(v)), nil
+		}
+		// abuse words limit
+		if strings.Contains(v,"fuck") {
+			return false, fmt.Sprintf("'%s' contains bad words '%s'", v, "fuck"), nil
+		}
+		return true,"success",nil
+	}, "introduction")
+...
+```
+**More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**

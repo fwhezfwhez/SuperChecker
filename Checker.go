@@ -1,37 +1,85 @@
 package superChecker
 
 import (
-	"regexp"
+	"errors"
 	"fmt"
 	"reflect"
-	"strings"
+	"regexp"
+	"runtime"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
-	"errors"
 )
 
+const (
+	DEBUG   = 1
+	RELEASE = 2
+)
+
+// global checker object
+// a checker contains its rule which stores the regex rule pool of the default pool and the added pool
 type Checker struct {
+	l     sync.RWMutex
+	mode  int
 	ruler Ruler
 }
+
+// rule object contained in a checker,it consists of a default pool and an added pool
 type Ruler struct {
+	defaultLock         sync.RWMutex
+	addedLock           sync.RWMutex
 	RegexBuilder        map[string]*regexp.Regexp
 	defaultRegexBuilder map[string]*regexp.Regexp
+	Funcs               map[string]Func
 }
 
-var int_type = []string{"int", "int32", "int64", "int8"}
-var float_type = []string{"float", "float32", "float64"}
+// string array that stand for int type
+var int_type = []string{"int", "int16", "int32", "int64", "int8"}
 
+// string array that stand for float_type
+var float_type = []string{"float", "float32", "float64", "decimal"}
+
+// Func has a value and its desgin path.
+//     value serves for a self design function that deals with the input data 'in interface{}', and returns its result 'ok bool',
+//     'message string', 'e error'.
+//     path serves for logging where the function is design
+// for example:
+//     value:
+//     func ValideMoney(in interface{}) (bool,string,error){
+// 	        v, ok :=in.(float64)
+//          if !ok{
+//              return false, fmt.Sprintf( want float64 type, got '%v'", in), errors.New(fmt.Sprintf(" want float64 type, got '%v'", in))
+//          }
+//	    	return true,"success",nil
+//     }
+//    path:
+//    xxx/xxx/xx/main.go: 90
+type Func struct {
+	Value func(in interface{}) (bool, string, error)
+	Path  string
+}
+
+// get a checker object which has contained regex rule below:
+// username : ^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$
+// number : "^[0-9]+$"
+// decimal : "^\\d+\\.[0-9]+$"
+// mobile phone : "^1[0-9]{10}$"
+// telephone : "^[0-9]{8}$"
+// not null: "^[\\s\\S]+$"
 func GetChecker() *Checker {
 	checker := &Checker{}
 	checker.ruler.defaultRegexBuilder = make(map[string]*regexp.Regexp)
 	checker.ruler.RegexBuilder = make(map[string]*regexp.Regexp)
-	fmt.Println("分配成功")
+	checker.ruler.Funcs = make(map[string]Func)
+
+	//fmt.Println("init memory for builder success")
 	regexes := map[string]string{
-		"UserName":    "^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$", //中文英文下划线点的组合，长度40以内，是常用的用户名正则限制
-		"Number":      "^[0-9]+$",                           //一个以上数字			// 正整数
-		"Decimal":     "^\\d+\\.[0-9]+$",                    //小数
-		"MobilePhone": "^1[0-9]{10}$",                       //移动电话
-		"TelePhone":   "^[0-9]{8}$",                         // 家用电话
+		"UserName":    "^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$", // username,chinese,english character,'_','.'，lenggh in 40
+		"Number":      "^[0-9]+$",                           // number of positive integer
+		"Decimal":     "^\\d+\\.[0-9]+$",                    // decimal, 2.2
+		"MobilePhone": "^1[0-9]{10}$",                       // mobilephone, length is 10, 13802930292
+		"TelePhone":   "^[0-9]{8}$",                         // telephone,length is 8,consist of 0-9 numbers,88501918
 		"NotNull":     "^[\\s\\S]+$",
 	}
 
@@ -40,173 +88,270 @@ func GetChecker() *Checker {
 		k = strings.ToLower(k)
 		checker.ruler.defaultRegexBuilder[k] = r
 	}
-	fmt.Println("注入默认成功")
 	return checker
 }
 
+// set its mode of superChecker.DEBUG,superChecker.RELEASE
+// DEBUG =1
+// RELEASE = 2
+func (checker *Checker) SetMode(mode int) {
+	checker.l.Lock()
+	defer checker.l.Unlock()
+	checker.mode = mode
+}
+
+// add default regex rule into default pool , when the key is already existed, then it will be replaced by the new one
 func (checker *Checker) AddDefaultRegex(key string, regex string) error {
 	r, err := regexp.Compile(regex)
 	if err != nil {
 		return err
 	}
 	key = strings.ToLower(key)
+	checker.ruler.defaultLock.Lock()
+	defer checker.ruler.defaultLock.Unlock()
+
 	checker.ruler.defaultRegexBuilder[key] = r
 	return nil
 }
 
+// add regex into added pool.
 func (checker *Checker) AddRegex(key string, regex string) error {
 	r, err := regexp.Compile(regex)
 	if err != nil {
 		return err
 	}
 	key = strings.ToLower(key)
+
+	checker.ruler.addedLock.Lock()
+	defer checker.ruler.addedLock.Unlock()
 	checker.ruler.RegexBuilder[key] = r
 	return nil
 }
+
+// remove regex kv from the  added pool.
 func (checker *Checker) RemoveRegex(key string) {
 	key = strings.ToLower(key)
+
+	checker.ruler.addedLock.Lock()
+	defer checker.ruler.addedLock.Unlock()
+
 	delete(checker.ruler.RegexBuilder, key)
 }
+
+// get a regex string format, added pool has higher privilege
+func (checker *Checker) GetRule(key string) string {
+	checker.ruler.addedLock.RLock()
+	defer checker.ruler.addedLock.RUnlock()
+	v1, ok1 := checker.ruler.RegexBuilder[key]
+	if ok1 {
+		return strconv.QuoteToASCII(v1.String())
+	}
+	checker.ruler.defaultLock.RLock()
+	defer checker.ruler.defaultLock.RUnlock()
+	v2, ok2 := checker.ruler.defaultRegexBuilder[key]
+	if ok2 {
+		return strconv.QuoteToASCII(v2.String())
+	}
+	return ""
+}
+
+// list all regex compiled in both the default and the added pool.
 func (checker *Checker) ListAll() {
-	for v, k := range checker.ruler.defaultRegexBuilder {
-		fmt.Println(fmt.Sprintf("key:%s,v:%v", v, k))
+	fmt.Println(fmt.Sprintf(" key | value "))
+
+	for k, v := range checker.ruler.defaultRegexBuilder {
+		fmt.Println(fmt.Sprintf(` %s | %s `, k, strconv.QuoteToASCII(v.String())))
 	}
-	for v, k := range checker.ruler.RegexBuilder {
-		fmt.Println(fmt.Sprintf("key:%s,v:%v", v, k))
+	for k, v := range checker.ruler.RegexBuilder {
+		fmt.Println(fmt.Sprintf(` %s | %s `, k, strconv.QuoteToASCII(v.String())))
+	}
+
+	for k, v := range checker.ruler.Funcs {
+		fmt.Println(fmt.Sprintf(` %s | %s `, k, strconv.QuoteToASCII(v.Path)))
 	}
 }
+
+// list default pool
 func (checker *Checker) ListDefault() {
-	for v, k := range checker.ruler.defaultRegexBuilder {
-		fmt.Println(fmt.Sprintf("key:%s,v:%v", v, k))
+	fmt.Println(fmt.Sprintf(" key | value "))
+
+	for k, v := range checker.ruler.defaultRegexBuilder {
+		fmt.Println(fmt.Sprintf(" %s | %s ", k, strconv.QuoteToASCII(v.String())))
 	}
 }
+
+// list added pool
 func (checker *Checker) ListRegexBuilder() {
-	for v, k := range checker.ruler.RegexBuilder {
-		fmt.Println(fmt.Sprintf("key:%s,v:%v", v, k))
+	fmt.Println(fmt.Sprintf(" key | value "))
+
+	for k, v := range checker.ruler.RegexBuilder {
+		fmt.Println(fmt.Sprintf(" %s | %s ", k, strconv.QuoteToASCII(v.String())))
 	}
 }
+
+// whether the key is contained
 func (checker *Checker) IsContainKey(key string) bool {
 	key = strings.ToLower(key)
-	for k, _ := range checker.ruler.RegexBuilder {
-		if k == key {
-			///	fmt.Println("在自定义builder内找到"+key+"匹配规则")
-			return true
-		}
+	_, ok1 := checker.ruler.RegexBuilder[key]
+	_, ok2 := checker.ruler.defaultRegexBuilder[key]
+	if ok1 || ok2 {
+		return true
 	}
-	for k, _ := range checker.ruler.defaultRegexBuilder {
-		if k == key {
-			//fmt.Println("在默认builder内找到"+key+"匹配规则")
-			return true
-		}
-	}
-	//fmt.Println("没有找到"+key+"匹配规则")
 	return false
 }
 
+// whether the added pool contains the rule key
 func (checker *Checker) IsBuilderContainKey(key string) bool {
 	key = strings.ToLower(key)
-	for k, _ := range checker.ruler.RegexBuilder {
-		if k == key {
-			return true
-		}
+
+	_, ok := checker.ruler.RegexBuilder[key]
+	if ok {
+		return true
 	}
 	return false
 }
 
-func (checker *Checker) GetDefaultBuilt() map[string]*regexp.Regexp {
+// whether the func pool contains the func key
+func (checker *Checker) ContainFunc(key string) bool {
+	_, ok := checker.ruler.Funcs[key]
+	return ok
+}
+
+// get func by key
+func (checker *Checker) GetFunc(key string) Func {
+	return checker.ruler.Funcs[key]
+}
+
+// add a func into func pool
+// keyAndPath stands for the func's key and func's define path.
+// key must specific and must be keyAndPath[0], path is optional.
+// when the length of keyAndPath is 0 or >2 , then throws error.
+// when the length of keyAndPath is 1, key is keyAndPath[0], path is the caller stack.
+// when the length of keyAndPath is 2, key is keyAndPath[0], path is keyAndPath[1].
+func (checker *Checker) AddFunc(f func(in interface{}) (bool, string, error), keyAndPath ...string) error {
+	if len(keyAndPath) > 2 {
+		return errors.New(fmt.Sprintf("keyAndPath should has length no more than 2, but got %v", keyAndPath))
+	} else if len(keyAndPath) == 0 {
+		return errors.New("keyAndPath should at least has length by 1 to define its key, but got 0")
+
+	}
+	key := keyAndPath[0]
+	var path = ""
+	if len(keyAndPath) == 2 {
+		path = keyAndPath[1]
+	} else if len(keyAndPath) == 1 {
+		_, file, line, _ := runtime.Caller(1)
+		path = fmt.Sprintf("%s:%d", file, line)
+	}
+	checker.ruler.Funcs[key] = Func{
+		Value: f,
+		Path:  path,
+	}
+	return nil
+}
+
+// get the default pool
+func (checker *Checker) GetDefaultBuilder() map[string]*regexp.Regexp {
+	checker.ruler.defaultLock.RLock()
+	defer checker.ruler.defaultLock.RUnlock()
 	return checker.ruler.defaultRegexBuilder
 }
 
-//Only support for string input using regex
+// support for string input or type that can be transfer to a string or an object which has function String().
+// notice:
+// 1. the value of tag 'superCheck' can be either upper or lower or mixed,
+//    `superChecker:"username"`,`superChecker:"usERName"`  are ok
+// 2. some cases will be ignored:
+//    `superChecker:""`, `superChecker:"-"` will be ignored
+//     struct{name string}{name:"undefined"}, struct{name string}{name:"undefine"} will be ignored
+// 3. make sure the not-ignored fields is string-able, these types can be well stringed:
+//    [int,int8,int16,int32,int64,float32,float64,] || <object'function String()>
 func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
-	fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
-	fmt.Println(fmt.Sprintf("input的值是%v:", vValue))
 
+	if checker.mode == DEBUG {
+		SmartPrint(input)
+	}
 	var valueStr = ""
 	for i := 0; i < vValue.NumField(); i++ {
 		tagValue := vType.Field(i).Tag.Get("superChecker")
+		//`superChecker:"username"`,`superChecker:"usERName"`  are ok
 		tagValue = strings.ToLower(tagValue)
-		if tagValue == "" {
+		//`superChecker:""`, `superChecker:"-"` will be ignored
+		if tagValue == "" || tagValue == "-" {
 			continue
 		}
+
 		value := vValue.Field(i).Interface()
-		switch  v := value.(type) {
-		case int:
-			valueStr = strconv.Itoa(v)
-		case int8:
-			valueStr = strconv.FormatInt(int64(v), 10)
-		case int32:
-			valueStr = strconv.FormatInt(int64(v), 10)
-		case int64:
-			valueStr = strconv.FormatInt(v, 10)
-		case float32:
-			valueStr = strconv.FormatFloat(float64(v), 'E', -1, 32)
-		case float64:
-			valueStr = strconv.FormatFloat(v, 'E', -1, 64)
-		case string:
-			valueStr = v
-		}
+
+		valueStr = ToString(value)
 
 		if valueStr == "undefined" || valueStr == "undefine" {
 			continue
 		}
 
+		// when contains '|'
 		if strings.Contains(tagValue, "|") {
 			if ok, err := rollingCheck(checker, valueStr, tagValue, "|"); !ok {
 				if err != nil {
-					return false, "检查" + vType.Field(i).Name + "时发生了错误", err
+					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i), err.Error()), err
 				}
-				return false, fmt.Sprintf("%v 匹配失败", vType.Field(i).Name), nil
+
+				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
 			}
-			//fmt.Println(fmt.Sprintf("%v匹配成功",vType.Field(i).Name))
+			//fmt.Println(fmt.Sprintf("field '%s' success",vType.Field(i).Name))
 			continue
 		} else {
+			// when contains ',' or neither contains ',' or '|'
 			if ok, err := rollingCheck(checker, valueStr, tagValue, ","); !ok {
 				if err != nil {
-					return false, "检查" + vType.Field(i).Name + "时发生了错误", err
+					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i), err.Error()), err
 				}
-				return false, fmt.Sprintf("%v 匹配失败", vType.Field(i).Name), nil
+				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
 			}
 			//fmt.Println(fmt.Sprintf("%v匹配成功",vType.Field(i).Name))
 
 			continue
 		}
 	}
-	return true, "匹配成功", nil
+	return true, "success", nil
 }
 
-//validate
+// validate if an input value is correct or not
+// notice:
+//     1. some ignored cases:
+//          `validate:""`, `validate:"-"` will be ignored
+//          struct{name string}{name:"undefine"}, struct{name string}{name:"undefined"} will be ignored
+// support int types ,float types, string, time
 func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
-	valueStr :=""
-	fmt.Println(fmt.Sprintf("input的类型是%v:", vType))
-	fmt.Println(fmt.Sprintf("input的值是%v:", vValue))
+	valueStr := ""
+	var ok, ok1, ok2 bool
+	if checker.mode == DEBUG {
+		SmartPrint(input)
+	}
 	for i := 0; i < vType.NumField(); i++ {
 		tagValue := vType.Field(i).Tag.Get("validate")
 		tagValue = strings.ToLower(tagValue)
-		if tagValue == "" {
+
+		// `validate:""` `validate:"-"` will be ignored
+		if tagValue == "" || tagValue == "-" {
 			continue
 		}
 		value := vValue.Field(i).Interface()
-		switch  v := value.(type) {
-		case int:
-			valueStr = strconv.Itoa(v)
-		case int8:
-			valueStr = strconv.FormatInt(int64(v), 10)
-		case int32:
-			valueStr = strconv.FormatInt(int64(v), 10)
-		case int64:
-			valueStr = strconv.FormatInt(v, 10)
-		case float32:
-			valueStr = strconv.FormatFloat(float64(v), 'E', -1, 32)
-		case float64:
-			valueStr = strconv.FormatFloat(v, 'E', -1, 64)
-		case string:
-			valueStr = v
+
+		// when it's a time type, deal it separately
+		_, ok1 = value.(time.Time)
+		ok2 = strings.Split(tagValue, ",")[0] == "time.time"
+		ok = ok1 || ok2
+		if ok && strings.Contains(tagValue, ",") && strings.Split(tagValue, ",")[1] != "" {
+			valueStr = ToString(value, strings.Split(tagValue, ",")[1])
+		} else {
+			valueStr = ToString(value)
 		}
+
 		if valueStr == "undefined" || valueStr == "undefine" || valueStr == "" {
 			continue
 		}
@@ -215,7 +360,19 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 			tmp := strings.Split(tagValue, ",")
 			tagValue = tmp[0]
 			rule := tmp[1]
-			if IsInt(tagValue) {
+			if isFunc(tagValue) {
+				if len(tmp) != 2 {
+					return false,
+						fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length by 2,but got '%s' length is %d", vType.Field(i).Name, tagValue, len(tmp)),
+						errors.New(fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length by 2,but got '%s' length %d", vType.Field(i).Name, tagValue, len(tmp)))
+				}
+
+				if !checker.ContainFunc(rule) {
+					return false, fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule),
+						errors.New(fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule))
+				}
+				return checker.GetFunc(rule).Value(value)
+			} else if IsInt(tagValue) {
 				if rule != "" {
 					tmp2 := strings.Split(rule, ":")
 					if len(tmp2) != 2 {
@@ -320,9 +477,10 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 		}
 
 	}
-	return true, "", nil
+	return true, "success", nil
 }
 
+// the same as FormatCheck,but sounds more specific
 func (checker *Checker) Validate(input interface{}) (bool, string, error) {
 	return checker.FormatCheck(input)
 }
@@ -335,13 +493,13 @@ func rollingCheck(checker *Checker, valueStr string, tagValue string, symbol str
 	subStrings := strings.Split(tagValue, symbol)
 	for i, v := range subStrings {
 		if !checker.IsContainKey(v) {
-			return false, errors.New("未定义" + v + "规则")
+			return false, errors.New(fmt.Sprintf("regex rule '%s' undefined", v))
 		}
 		if checker.IsBuilderContainKey(v) {
-			//fmt.Println("自定义buider包含了"+v+"规则")
+			//fmt.Println(fmt.Sprintf("'%s' id defined in added pool")
 
 			if !checkRegex(valueStr, checker.ruler.RegexBuilder[v]) {
-				//fmt.Println(v+"规则匹配失败")
+				//fmt.Println(fmt.Sprintf("'%s' match fail", v))
 				return false, nil
 			} else {
 				if symbol == "|" {
@@ -350,7 +508,7 @@ func rollingCheck(checker *Checker, valueStr string, tagValue string, symbol str
 				continue
 			}
 		}
-		if !checkRegex(valueStr, checker.GetDefaultBuilt()[v]) {
+		if !checkRegex(valueStr, checker.GetDefaultBuilder()[v]) {
 			if symbol == "," {
 				return false, nil
 			} else {
@@ -396,6 +554,13 @@ func IsFloat(in string) bool {
 		if v == in {
 			return true
 		}
+	}
+	return false
+}
+
+func isFunc(in string) bool {
+	if in == "func" || in == "function" {
+		return true
 	}
 	return false
 }
