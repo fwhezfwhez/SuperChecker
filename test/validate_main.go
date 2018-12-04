@@ -29,11 +29,11 @@ type Order struct {
 	OrderUsername  string `validate:"regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$"`
 	OrderUsername2 string `validate:"regex,username"`
 
-	// RANGE, IN
+	// RANGE,IN
 	OrderStatus     int    `validate:"range,[1,2,3,4]"`
 	OrderStatusName string `validate:"in,[unpaid,paid,closed]"`
 
-	// FUNCTION, FUNC
+	// FUNC, FUNCTION
 	MailTypeCheckBox  string `validate:"func,inAndLength"`
 	MailTypeCheckBox2 string `validate:"function,inAndLength"`
 }
