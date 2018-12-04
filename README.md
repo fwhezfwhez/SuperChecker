@@ -4,113 +4,143 @@ a validator and checker tool. validator works for validating whether the input d
 [![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/fwhezfwhez/SuperChecker)
 
 ## Example
+### superChecker tag example
+```go
+// Tips:
+// 'superChecker' tag has been stopped developing, the old functions will be remained.
+// 'validate' tag is to replace the old ussages:
+// "Name string `superChecker:"key1,key2"`" equals to "Name string `validate:"regex,key1,key2"`"
+
+package main
+
+import (
+	"fmt"
+	"github.com/shopspring/decimal"
+	"github.com/fwhezfwhez/superChecker"
+)
+
+type Animal struct{
+	Name string `superChecker:"username"`
+	Count int `superChecker:"positive"`
+	Price decimal.Decimal `superChecker:"positive"`
+}
+
+func main() {
+	animal := Animal{
+		Name:"beibei",
+		Count: 1000,
+		Price: decimal.NewFromFloat(100000),
+	}
+
+	checker := superChecker.GetChecker()
+	checker.AddRegex("username","^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$")
+	checker.AddRegex("positive","^[0-9.]+$")
+	ok,msg,er := checker.SuperCheck(animal)
+	if er!=nil {
+		fmt.Println(fmt.Sprintf("got an error: '%s'", er.Error()))
+		return
+	}
+	if !ok {
+		fmt.Println(fmt.Sprintf("fail because of : '%s'", msg))
+		return
+	}
+	fmt.Println("success")
+}
+```
+
+### validate tag example
 ```go
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/shopspring/decimal"
-	"log"
-	"strings"
 	"superChecker"
 	"time"
 )
 
-type User struct {
-    // validate via func pool
-	Introduce    string       `validate:"func,introduction"`
+type Order struct {
+	// TIME
+	CreatedAt time.Time `validate:"time.time"`
+	UpdatedAt string    `validate:"time.time,2006/01/02 15:04:05"`
 
-    // validate via validation tag
-	InTime    time.Time       `validate:"time.Time,2006.01.2 15:04:05"`
-	InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"`
-	Age       int             `validate:"int,:140"`
-	Salary    float64         `validate:"float"`
-	Deci      decimal.Decimal `validate:"float,10:100"`
+	// INT
+	Count    int `validate:"int,0:200"`
+	MaxCount int `validate:"int,:200"`
+	MinCount int `validate:"int,10:"`
+	Count2   int `validate:"int64,0:200"`
 
-    // jump
-	K        []int
+	// FLOAT
+	RewardRate    float64         `validate:"float,0:0.4"`
+	MaxRewardRate float64         `validate:"float,:0.4"`
+	MinRewradRate float64         `validate:"float,0:"`
+	RewardRate2   float64         `validate:"float64,0:0.4"`
+	RewardRate3   decimal.Decimal `validate:"decimal,0:0.4"`
 
-    // check via regex
-	Phone    string `superChecker:"mobilephone|telephone"`
-	UserName string `superChecker:"userName" json:"userName" `
-	Password string `superChecker:"password"`
-	NotNull  string `superChecker:"notnull"`
-	Text   string //`superChecker:"length,chineseOnly,notNull"`
-	Number int64 `superChecker:"mobilephone"`
+	// REGEX
+	OrderUsername  string `validate:"regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$"`
+	OrderUsername2 string `validate:"regex,username"`
+
+	// RANGE, IN
+	OrderStatus     int    `validate:"range,[1,2,3,4]"`
+	OrderStatusName string `validate:"in,[unpaid,paid,closed]"`
+
+	// FUNCTION, FUNC
+	MailTypeCheckBox  string `validate:"func,inAndLength"`
+	MailTypeCheckBox2 string `validate:"function,inAndLength"`
 }
 
 func main() {
-    // build a testing data
-	user := User{
-		Introduce: "I am flying",
-		InTime:    time.Now(),
-		InTimeStr: time.Now().Format("2006.01-2 15:04:05"),
-		UserName:  "d",
-		Password:  "a1dfdasfsdf",
-		Phone:     "13875847584",
-		Text:      "undefined",
-		Age:       130,
-		Salary:    3000.9,
-		Number:    18970937633,
-		NotNull:   "3",
-		Deci:      decimal.NewFromFloat(11.9),
+	order := Order{
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now().Format("2006/01/02 15:04:05"),
+
+		Count:    200,
+		MaxCount: 90,
+		MinCount: 10,
+		Count2:   100,
+
+		RewardRate:    0.4,
+		MaxRewardRate: 0.3,
+		MinRewradRate: 0.1,
+		RewardRate2:   0.1,
+		RewardRate3:   decimal.NewFromFloat(0.4),
+
+		OrderUsername:  "superCheckerValidate",
+		OrderUsername2: "superCheckerValidate",
+
+		OrderStatus:     3,
+		OrderStatusName: "closed",
+
+		MailTypeCheckBox:  "midMail",
+		MailTypeCheckBox2: "",
 	}
-    // init a checker object
+
 	checker := superChecker.GetChecker()
-
-    // add regex rule into regex pool
-	checker.AddRegex("passWoRd", "^[\\s\\S]{6,}$")
-	checker.AddRegex("length", "^[\\s\\S]{0,20}$")
-	checker.AddRegex("chineseOnly", "^[\u4E00-\u9FA5]*$")
-
-    // add func into func pool
-	checker.AddFunc(func(in interface{})(bool,string,error){
-		v,ok := in.(string)
-		if !ok {
-			return false, "assertion error,in is not a string type", errors.New("assertion error,in is not a string type")
+	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
+		v := superChecker.ToString(in)
+		maxLength := 3
+		if len(v) > maxLength {
+			return false, fmt.Sprintf("while validating field '%s', rule key '%s' over length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
 		}
-		// deal with v
-		// length limit
-		if len(v) >1000 {
-			return false, fmt.Sprintf("max len is 1000,but got %d", len(v)), nil
+		vrange := []string{"midMail", "shenMail", "yundaMail"}
+		for _, value := range vrange {
+			if value == v {
+				return true, "success", nil
+			}
 		}
-		// abuse words limit
-		if strings.Contains(v,"fuck") {
-			return false, fmt.Sprintf("'%s' contains bad words '%s'", v, "fuck"), nil
-		}
-		return true,"success",nil
-	}, "introduction")
-
-    // add regex rule into default pool
-	checker.AddDefaultRegex("chineseOnly", "^[\u4E00-\u9FA5]*$")
-	fmt.Println("-------Check(in string,rule string)---------")
-
-    // regex checks a single string data
-	ok, er := checker.Check("10000124", "^[0-9]{8}$")
-	fmt.Println(ok, er)
-
-	// check those fields whose tag is 'superChecker'
-	result, msg, err := checker.SuperCheck(user)
-	if err != nil {
-		log.Println(err)
-	}
-	fmt.Println("-------SuperCheck(in interface{})-------")
-
-	fmt.Println("匹配结果:", result, "信息:", msg)
-
-	fmt.Println("-------FormatCheck(in interface{})/Validate(in interface{})-------")
-	// validate those fields whose tag is 'validate'
-	ok, msg, er = checker.FormatCheck(user)
-	//ok, msg, er = checker.Validate(user)
-
+		return false, fmt.Sprintf("while validating field '%s', rule key '%s',  value '%s' not in '%v'", fieldName, "inAndLength", v, vrange), nil
+	}, "inAndLength")
+	ok, msg, er := checker.Validate(order)
 	if er != nil {
-		log.Println(er.Error())
+		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
+		return
 	}
-	fmt.Println("格式验证结果:", ok, "msg:", msg)
-
-	fmt.Println("-------listAll----------")
-	checker.ListAll()
+	if !ok {
+		fmt.Println(fmt.Sprintf("validate fail because of '%s'", msg))
+		return
+	}
+	fmt.Println("success")
 }
 
 ```
@@ -186,7 +216,7 @@ type User struct {
 	Introduce    string       `validate:"func,introduction"`
 }
 ...
-checker.AddFunc(func(in interface{})(bool,string,error){
+checker.AddFunc(func(in interface{}, fieldName string)(bool,string,error){
 		v,ok := in.(string)
 		if !ok {
 			return false, "assertion error,in is not a string type", errors.New("assertion error,in is not a string type")
@@ -204,4 +234,5 @@ checker.AddFunc(func(in interface{})(bool,string,error){
 	}, "introduction")
 ...
 ```
+
 **More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**

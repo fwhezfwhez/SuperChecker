@@ -6,6 +6,7 @@ import (
 	"go/types"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -60,4 +61,11 @@ func ToString(arg interface{}, timeFormat ...string) string {
 	default:
 		return ""
 	}
+}
+
+func RemovePrefix(s string,prefix string) string{
+	if !strings.HasPrefix(s, prefix){
+		return s
+	}
+	return s[len(prefix):]
 }

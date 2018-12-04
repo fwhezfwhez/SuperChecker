@@ -35,10 +35,13 @@ type Ruler struct {
 }
 
 // string array that stand for int type
-var int_type = []string{"int", "int16", "int32", "int64", "int8"}
+var intTypes = []string{"int", "int16", "int32", "int64", "int8"}
 
-// string array that stand for float_type
-var float_type = []string{"float", "float32", "float64", "decimal"}
+// string array that stand for floatTypes
+var floatTypes = []string{"float", "float32", "float64", "decimal"}
+
+// flag range
+var flagRange = []string{"range", "in", "regex", "int", "int32", "int64", "int8", "string", "char", "float", "float32", "float64", "decimal", "time.time", "func", "function"}
 
 // Func has a value and its desgin path.
 //     value serves for a self design function that deals with the input data 'in interface{}', and returns its result 'ok bool',
@@ -56,7 +59,7 @@ var float_type = []string{"float", "float32", "float64", "decimal"}
 //    path:
 //    xxx/xxx/xx/main.go: 90
 type Func struct {
-	Value func(in interface{}) (bool, string, error)
+	Value func(in interface{}, filedName string) (bool, string, error)
 	Path  string
 }
 
@@ -66,28 +69,14 @@ type Func struct {
 // decimal : "^\\d+\\.[0-9]+$"
 // mobile phone : "^1[0-9]{10}$"
 // telephone : "^[0-9]{8}$"
-// not null: "^[\\s\\S]+$"
+// notnull: "^[\\s\\S]+$"
 func GetChecker() *Checker {
 	checker := &Checker{}
 	checker.ruler.defaultRegexBuilder = make(map[string]*regexp.Regexp)
 	checker.ruler.RegexBuilder = make(map[string]*regexp.Regexp)
 	checker.ruler.Funcs = make(map[string]Func)
 
-	//fmt.Println("init memory for builder success")
-	regexes := map[string]string{
-		"UserName":    "^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$", // username,chinese,english character,'_','.'，lenggh in 40
-		"Number":      "^[0-9]+$",                           // number of positive integer
-		"Decimal":     "^\\d+\\.[0-9]+$",                    // decimal, 2.2
-		"MobilePhone": "^1[0-9]{10}$",                       // mobilephone, length is 10, 13802930292
-		"TelePhone":   "^[0-9]{8}$",                         // telephone,length is 8,consist of 0-9 numbers,88501918
-		"NotNull":     "^[\\s\\S]+$",
-	}
-
-	for k, v := range regexes {
-		r, _ := regexp.Compile(v)
-		k = strings.ToLower(k)
-		checker.ruler.defaultRegexBuilder[k] = r
-	}
+	checker.ruler.defaultRegexBuilder = compiledMap
 	return checker
 }
 
@@ -228,7 +217,7 @@ func (checker *Checker) GetFunc(key string) Func {
 // when the length of keyAndPath is 0 or >2 , then throws error.
 // when the length of keyAndPath is 1, key is keyAndPath[0], path is the caller stack.
 // when the length of keyAndPath is 2, key is keyAndPath[0], path is keyAndPath[1].
-func (checker *Checker) AddFunc(f func(in interface{}) (bool, string, error), keyAndPath ...string) error {
+func (checker *Checker) AddFunc(f func(in interface{}, fieldName string) (bool, string, error), keyAndPath ...string) error {
 	if len(keyAndPath) > 2 {
 		return errors.New(fmt.Sprintf("keyAndPath should has length no more than 2, but got %v", keyAndPath))
 	} else if len(keyAndPath) == 0 {
@@ -243,7 +232,7 @@ func (checker *Checker) AddFunc(f func(in interface{}) (bool, string, error), ke
 		_, file, line, _ := runtime.Caller(1)
 		path = fmt.Sprintf("%s:%d", file, line)
 	}
-	checker.ruler.Funcs[key] = Func{
+	checker.ruler.Funcs[strings.ToLower(key)] = Func{
 		Value: f,
 		Path:  path,
 	}
@@ -301,7 +290,7 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
 			}
 			//fmt.Println(fmt.Sprintf("field '%s' success",vType.Field(i).Name))
-			continue
+			//continue
 		} else {
 			// when contains ',' or neither contains ',' or '|'
 			if ok, err := rollingCheck(checker, valueStr, tagValue, ","); !ok {
@@ -310,10 +299,11 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 				}
 				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
 			}
-			//fmt.Println(fmt.Sprintf("%v匹配成功",vType.Field(i).Name))
+			//fmt.Println(fmt.Sprintf("field '%s' success",vType.Field(i).Name))
 
-			continue
+			//continue
 		}
+		continue
 	}
 	return true, "success", nil
 }
@@ -332,9 +322,12 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 	if checker.mode == DEBUG {
 		SmartPrint(input)
 	}
+L:
 	for i := 0; i < vType.NumField(); i++ {
 		tagValue := vType.Field(i).Tag.Get("validate")
-		tagValue = strings.ToLower(tagValue)
+		if whetherLowerCase(tagValue) {
+			tagValue = strings.ToLower(tagValue)
+		}
 
 		// `validate:""` `validate:"-"` will be ignored
 		if tagValue == "" || tagValue == "-" {
@@ -342,7 +335,126 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 		}
 		value := vValue.Field(i).Interface()
 
-		// when it's a time type, deal it separately
+		// the empty value will be ignore if no 'notnull' flag
+		if !strings.Contains(strings.ToLower(tagValue), "notnull") {
+			if ToString(value) == "" {
+				continue
+			}
+		}
+
+		tmp := strings.Split(tagValue, ",")
+		flag := strings.ToLower(tmp[0])
+		if !strings.Contains(strings.Join(flagRange, " "), flag) {
+			return false,
+				fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", vType.Field(i).Name, flag, flagRange),
+				errors.New(fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", vType.Field(i).Name, flag, flagRange),
+				)
+		}
+
+		var rule string
+		if len(tmp) > 1 {
+			rule = strings.Join(tmp[1:], ",")
+		}
+
+		// flag range/in validate
+		if flag == "range" || flag == "in" {
+			if !strings.HasPrefix(rule, "[") || !strings.HasSuffix(rule, "]") {
+				return false,
+					fmt.Sprintf("field '%s' range/in flag must have its rule format like '[x,x,x,x,x] but got '%s'", vType.Field(i).Name, rule),
+					errors.New(fmt.Sprintf("field '%s' range/in flag must have its rule format like '[x,x,x,x,x] but got '%s'", vType.Field(i).Name, rule))
+			}
+			valueStr = ToString(value)
+			arr := strings.Split(rule[1:len(rule)-1], ",")
+			for _, v := range arr {
+				if v == valueStr {
+					continue L
+				}
+			}
+			return false, fmt.Sprintf("field '%s' required in '%s' but got '%s'", vType.Field(i).Name, rule, valueStr), nil
+		}
+
+		// regex validate
+		// regex validate is used to replace superChecker tag
+		// Name string `superChecker:"key"`  <==> Name string `validate:"regex,key"`
+		if flag == "regex" {
+			if whetherLowerCase(tagValue) {
+				rule = strings.ToLower(rule)
+			}
+			valueStr = ToString(value)
+			// rule is raw regex
+			if strings.HasPrefix(rule, `^`) && strings.HasSuffix(rule, `$`) {
+				ok, er := checker.Check(valueStr, rule)
+				if er != nil {
+					return false,
+						fmt.Sprintf("while validating field '%s' regex '%s' throws an error '%s'", vType.Field(i).Name, strconv.QuoteToASCII(rule), er.Error()),
+						errors.New(fmt.Sprintf("while validating field '%s' regex '%s' throws an error '%s'", vType.Field(i).Name, strconv.QuoteToASCII(rule), er.Error()))
+				}
+				if !ok {
+					return false,
+						fmt.Sprintf("while validating field '%s' regex '%s' but got unmatched value '%s'", vType.Field(i).Name, strconv.QuoteToASCII(rule), valueStr),
+						nil
+				}
+				continue L
+			} else {
+				if strings.Contains(rule, "|") {
+					// rule formated like 'key1|key2|key3' which can be separated by '|'
+					rules := strings.Split(rule, "|")
+					for j, v := range rules {
+						ok, er := checker.CheckFromPool(valueStr, v)
+						if er != nil {
+							return false,
+								fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", vType.Field(i).Name, j, v, er.Error()),
+								errors.New(fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", vType.Field(i).Name, j, v, er.Error()))
+						}
+						if ok {
+							continue L
+						}
+						if j == len(rules)-1 {
+							return false, fmt.Sprintf("while validating field '%s', regex key group %v all fail, got unmatched value '%s'", vType.Field(i).Name, rules, valueStr), nil
+						}
+					}
+				} else if strings.Contains(rule, ",") {
+					// rule formated like 'key1,key2,key3' which can be separated by ','
+					rules := strings.Split(rule, ",")
+					for i, v := range rules {
+						ok, er := checker.CheckFromPool(valueStr, v)
+						if er != nil {
+							return false,
+								fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", vType.Field(i).Name, i, v, er.Error()),
+								errors.New(fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", vType.Field(i).Name, i, v, er.Error()))
+						}
+						if !ok {
+							return false,
+								fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' but got unmatched value '%s'", vType.Field(i).Name, i, v, valueStr),
+								nil
+						}
+					}
+				} else {
+					// rule is regarded as the key itself
+					if !checker.IsContainKey(rule) {
+						return false,
+							fmt.Sprintf("while validating field '%s' regex key '%s' not found in any of default regex pool or add regex pool,you may use '%s' before using it", vType.Field(i).Name, rule, "checker.AddRegex('key', '^raw regex$')"),
+							errors.New(fmt.Sprintf("while validating field '%s' regex key '%s' not found in any of default regex pool or add regex pool,you may use '%s' before using it", vType.Field(i).Name, rule, "checker.AddRegex('key', '^raw regex$')"))
+					}
+					ok, er := checker.CheckFromPool(valueStr, rule)
+					if er != nil {
+						return false,
+							fmt.Sprintf("while validating field '%s' regex pool key '%s' throws an error '%s'", vType.Field(i).Name, rule, er.Error()),
+							er
+					}
+					if !ok {
+						return false,
+							fmt.Sprintf("while validating field '%s' regex pool key '%s' but got unmatched value '%s'", vType.Field(i).Name, rule, valueStr),
+							nil
+					}
+				}
+			}
+			continue L
+		}
+
+		// type validate including:
+		// func validate,
+		// int,float,time validate
 		_, ok1 = value.(time.Time)
 		ok2 = strings.Split(tagValue, ",")[0] == "time.time"
 		ok = ok1 || ok2
@@ -357,9 +469,9 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 		}
 
 		if strings.Contains(tagValue, ",") {
-			tmp := strings.Split(tagValue, ",")
+			tmp = strings.Split(tagValue, ",")
 			tagValue = tmp[0]
-			rule := tmp[1]
+			rule = tmp[1]
 			if isFunc(tagValue) {
 				if len(tmp) != 2 {
 					return false,
@@ -371,7 +483,11 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 					return false, fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule),
 						errors.New(fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule))
 				}
-				return checker.GetFunc(rule).Value(value)
+				ok, msg, er := checker.GetFunc(rule).Value(value, vType.Field(i).Name)
+				if ok {
+					continue L
+				}
+				return ok, msg, er
 			} else if IsInt(tagValue) {
 				if rule != "" {
 					tmp2 := strings.Split(rule, ":")
@@ -420,19 +536,19 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 					if tmp2[0] != "" {
 						min, er := strconv.ParseFloat(tmp2[0], 64)
 						if er != nil {
-							return false, "", errors.New(vType.Field(i).Name + " notation rule required float_number:float_number but get " + tmp2[0])
+							return false, "", errors.New(vType.Field(i).Name + " notation rule required float_number:float_number but got " + tmp2[0])
 						}
 						if v < min {
-							return false, vType.Field(i).Name + " float value required bigger than" + tmp2[0] + " but get " + valueStr, nil
+							return false, vType.Field(i).Name + " float value required bigger than" + tmp2[0] + " but got " + valueStr, nil
 						}
 					}
 					if tmp2[1] != "" {
 						max, er := strconv.ParseFloat(tmp2[1], 64)
 						if er != nil {
-							return false, "", errors.New(vType.Field(i).Name + " notation rule required number:number but get " + tmp2[1])
+							return false, "", errors.New(vType.Field(i).Name + " notation rule required number:number but got " + tmp2[1])
 						}
 						if v > max {
-							return false, vType.Field(i).Name + " float value required smaller than " + tmp2[1] + "but get " + valueStr, nil
+							return false, vType.Field(i).Name + " float value required smaller than " + tmp2[1] + " but got " + valueStr, nil
 						}
 					}
 				} else {
@@ -446,12 +562,12 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 				if rule != "" {
 					_, er := time.ParseInLocation(rule, valueStr, time.Local)
 					if er != nil {
-						return false, "time format requires " + rule + " but got " + valueStr, nil
+						return false, fmt.Sprintf("while validating field '%s', time format requires %s but go %s", vType.Field(i).Name, rule, valueStr), nil
 					}
 				} else {
 					_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
 					if er != nil {
-						return false, "not set time rule,default time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr, nil
+						return false, fmt.Sprintf("while validating field '%s', the value got '%s' ,time parse throws an error '%s'", vType.Field(i).Name, valueStr, er.Error()), nil
 					}
 				}
 			}
@@ -471,11 +587,11 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 				//"2006/1/2 15:04:05"
 				_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
 				if er != nil {
-					return false, "time format requires " + "2006/1/2 15:04:05" + " but got " + valueStr, nil
+					return false, fmt.Sprintf("while validating field '%s', the value got '%s' ,time parse throws an error '%s'", vType.Field(i).Name, valueStr, er.Error()), nil
 				}
 			}
 		}
-
+		continue
 	}
 	return true, "success", nil
 }
@@ -487,6 +603,13 @@ func (checker *Checker) Validate(input interface{}) (bool, string, error) {
 
 func checkRegex(input string, regex *regexp.Regexp) bool {
 	return regex.MatchString(input)
+}
+
+func whetherLowerCase(tagValue string) bool {
+	if strings.HasPrefix(tagValue, "regex") && strings.Contains(tagValue, "^") && strings.Contains(tagValue, "$") {
+		return false
+	}
+	return true
 }
 
 func rollingCheck(checker *Checker, valueStr string, tagValue string, symbol string) (bool, error) {
@@ -533,6 +656,7 @@ func rollingCheck(checker *Checker, valueStr string, tagValue string, symbol str
 
 }
 
+// check an input string value by a raw regex string
 func (checker *Checker) Check(input string, regex string) (bool, error) {
 	r, er := regexp.Compile(regex)
 	if er != nil {
@@ -541,16 +665,23 @@ func (checker *Checker) Check(input string, regex string) (bool, error) {
 	return r.MatchString(input), nil
 }
 
-func IsInt(in string) bool {
-	for _, v := range int_type {
-		if v == in {
-			return true
-		}
+// check an input string value by the compiled regex object from the checker's default and added pool
+func (checker *Checker) CheckFromPool(input string, key string) (bool, error) {
+	key = strings.ToLower(key)
+	if !checker.IsContainKey(key) {
+		return false, errors.New(fmt.Sprintf("key '%s' not found in any of default or added regex pool", key))
 	}
-	return false
+
+	r, ok := checker.ruler.RegexBuilder[key]
+	if !ok {
+		return checker.ruler.defaultRegexBuilder[key].MatchString(input), nil
+	}
+	return r.MatchString(input), nil
 }
-func IsFloat(in string) bool {
-	for _, v := range float_type {
+
+// int type assertion
+func IsInt(in string) bool {
+	for _, v := range intTypes {
 		if v == in {
 			return true
 		}
@@ -558,7 +689,19 @@ func IsFloat(in string) bool {
 	return false
 }
 
+// float type assertion
+func IsFloat(in string) bool {
+	for _, v := range floatTypes {
+		if v == in {
+			return true
+		}
+	}
+	return false
+}
+
+// func type assertion
 func isFunc(in string) bool {
+	in = strings.ToLower(in)
 	if in == "func" || in == "function" {
 		return true
 	}

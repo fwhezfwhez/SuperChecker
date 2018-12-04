@@ -11,16 +11,30 @@ import (
 )
 
 type User struct {
+	// regex key validate
+	Phone2 string `validate:"regex,mobilephone|telephone"`
+	// regex raw validate
+	Phone3 string `validate:"regex,^[0-9]{8}$"`
+
+	// func validate
 	Introduce    string       `validate:"func,introduction"`
 
+	// type time.time validate
 	InTime    time.Time       `validate:"time.Time"`
 	InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"`
+
+	// type int validate
 	Age       int             `validate:"int,:140"`
+	// type float validate
 	Salary    float64         `validate:"float"`
 	Deci      decimal.Decimal `validate:"float,10:100"`
 
 	K        []int
+	// superChecker
+	//`superChecker:"mobilephone|telephone"` equals to `validate:"regex,mobilephone|telephone"`
 	Phone    string `superChecker:"mobilephone|telephone"`
+
+
 	UserName string `superChecker:"userName" json:"userName" `
 	Password string `superChecker:"password"`
 	NotNull  string `superChecker:"notnull"`
@@ -37,6 +51,8 @@ func main() {
 		UserName:  "d",
 		Password:  "a1dfdasfsdf",
 		Phone:     "13875847584",
+		Phone2: "",
+
 		Text:      "undefined",
 		Age:       130,
 		Salary:    3000.9,
