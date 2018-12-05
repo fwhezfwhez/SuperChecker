@@ -284,7 +284,7 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 		if strings.Contains(tagValue, "|") {
 			if ok, err := rollingCheck(checker, valueStr, tagValue, "|"); !ok {
 				if err != nil {
-					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i), err.Error()), err
+					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i).Name, err.Error()), err
 				}
 
 				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
@@ -295,7 +295,7 @@ func (checker *Checker) SuperCheck(input interface{}) (bool, string, error) {
 			// when contains ',' or neither contains ',' or '|'
 			if ok, err := rollingCheck(checker, valueStr, tagValue, ","); !ok {
 				if err != nil {
-					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i), err.Error()), err
+					return false, fmt.Sprintf("checking '%s' catch an error '%s'", vType.Field(i).Name, err.Error()), err
 				}
 				return false, fmt.Sprintf("'%s' unmatched, expected rule '%s',got '%s'", vType.Field(i).Name, checker.GetRule(tagValue), value), nil
 			}
@@ -681,6 +681,7 @@ func (checker *Checker) CheckFromPool(input string, key string) (bool, error) {
 
 // int type assertion
 func IsInt(in string) bool {
+	in = strings.ToLower(in)
 	for _, v := range intTypes {
 		if v == in {
 			return true
@@ -691,6 +692,7 @@ func IsInt(in string) bool {
 
 // float type assertion
 func IsFloat(in string) bool {
+	in = strings.ToLower(in)
 	for _, v := range floatTypes {
 		if v == in {
 			return true
