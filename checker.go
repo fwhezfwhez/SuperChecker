@@ -471,23 +471,61 @@ L:
 		if strings.Contains(tagValue, ",") {
 			tmp = strings.Split(tagValue, ",")
 			tagValue = tmp[0]
-			rule = tmp[1]
+			rule = strings.Join(tmp[1:],",")
 			if isFunc(tagValue) {
-				if len(tmp) != 2 {
+				if len(tmp) < 2 {
 					return false,
-						fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length by 2,but got '%s' length is %d", vType.Field(i).Name, tagValue, len(tmp)),
-						errors.New(fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length by 2,but got '%s' length %d", vType.Field(i).Name, tagValue, len(tmp)))
+						fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length more than 2,but got '%s' length is %d", vType.Field(i).Name, tagValue, len(tmp)),
+						errors.New(fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length more than 2,but got '%s' length %d", vType.Field(i).Name, tagValue, len(tmp)))
 				}
 
-				if !checker.ContainFunc(rule) {
-					return false, fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule),
-						errors.New(fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule))
+				if len(tmp) == 2 {
+					if arr := strings.Split(rule, "|"); len(arr) > 1 {
+						// validate:func,key1|key2|key3
+						for j,r := range arr{
+							if !checker.ContainFunc(r) {
+								return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r),
+									errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r))
+							}
+							ok, msg, er := checker.GetFunc(r).Value(value, vType.Field(i).Name)
+							if ok {
+								continue L
+							}
+							if j >= len(arr)-1 {
+								return ok, msg, er
+							}
+							continue
+						}
+					} else {
+						// validate:func,key1
+						if !checker.ContainFunc(rule) {
+							return false, fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule),
+								errors.New(fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule))
+						}
+						ok, msg, er := checker.GetFunc(rule).Value(value, vType.Field(i).Name)
+						if ok {
+							continue L
+						}
+						return ok, msg, er
+					}
+				} else {
+					// validate:func,key1,key2,key3,key4
+					rules := strings.Split(rule, ",")
+					for j,r := range rules{
+						if !checker.ContainFunc(r) {
+							return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r),
+								errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r))
+						}
+						ok, msg, er := checker.GetFunc(r).Value(value, vType.Field(i).Name)
+						if !ok {
+							return ok, msg, er
+						}
+						if j == len(rules)-1 {
+							continue L
+						}
+					}
 				}
-				ok, msg, er := checker.GetFunc(rule).Value(value, vType.Field(i).Name)
-				if ok {
-					continue L
-				}
-				return ok, msg, er
+
 			} else if IsInt(tagValue) {
 				if rule != "" {
 					tmp2 := strings.Split(rule, ":")

@@ -34,8 +34,8 @@ type Order struct {
 	OrderStatusName string `validate:"in,[unpaid,paid,closed]"`
 
 	// FUNC, FUNCTION
-	MailTypeCheckBox  string `validate:"func,inAndLength"`
-	MailTypeCheckBox2 string `validate:"function,inAndLength"`
+	MailTypeCheckBox  string `validate:"func,inAndLength,lengthMoreThan3"`
+	MailTypeCheckBox2 string `validate:"function,lengthLessThan3|inAndLength"`
 }
 
 func main() {
@@ -61,13 +61,13 @@ func main() {
 		OrderStatusName: "closed",
 
 		MailTypeCheckBox:  "midMail",
-		MailTypeCheckBox2: "",
+		MailTypeCheckBox2: "midMail",
 	}
 
 	checker := superChecker.GetChecker()
 	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
 		v := superChecker.ToString(in)
-		maxLength := 3
+		maxLength := 7
 		if len(v) > maxLength {
 			return false, fmt.Sprintf("while validating field '%s', rule key '%s' over length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
 		}
@@ -79,6 +79,24 @@ func main() {
 		}
 		return false, fmt.Sprintf("while validating field '%s', rule key '%s',  value '%s' not in '%v'", fieldName, "inAndLength", v, vrange), nil
 	}, "inAndLength")
+	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+		v := superChecker.ToString(in)
+		minLength := 3
+		if len(v) < minLength {
+			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", minLength, len(v)), nil
+		}
+		return true, "success", nil
+	},"lengthmorethan3")
+
+	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+		v := superChecker.ToString(in)
+		maxLength := 3
+		if len(v) > maxLength {
+			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
+		}
+		return true, "success", nil
+	},"lengthlessthan3")
+
 	ok, msg, er := checker.Validate(order)
 	if er != nil {
 		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
