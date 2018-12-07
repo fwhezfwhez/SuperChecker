@@ -471,7 +471,7 @@ L:
 		if strings.Contains(tagValue, ",") {
 			tmp = strings.Split(tagValue, ",")
 			tagValue = tmp[0]
-			rule = strings.Join(tmp[1:],",")
+			rule = strings.Join(tmp[1:], ",")
 			if isFunc(tagValue) {
 				if len(tmp) < 2 {
 					return false,
@@ -482,10 +482,10 @@ L:
 				if len(tmp) == 2 {
 					if arr := strings.Split(rule, "|"); len(arr) > 1 {
 						// validate:func,key1|key2|key3
-						for j,r := range arr{
+						for j, r := range arr {
 							if !checker.ContainFunc(r) {
-								return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r),
-									errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r))
+								return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name, j, r),
+									errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name, j, r))
 							}
 							ok, msg, er := checker.GetFunc(r).Value(value, vType.Field(i).Name)
 							if ok {
@@ -511,10 +511,10 @@ L:
 				} else {
 					// validate:func,key1,key2,key3,key4
 					rules := strings.Split(rule, ",")
-					for j,r := range rules{
+					for j, r := range rules {
 						if !checker.ContainFunc(r) {
-							return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r),
-								errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name,j, r))
+							return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name, j, r),
+								errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", vType.Field(i).Name, j, r))
 						}
 						ok, msg, er := checker.GetFunc(r).Value(value, vType.Field(i).Name)
 						if !ok {
@@ -634,9 +634,128 @@ L:
 	return true, "success", nil
 }
 
+//  validate the tag whose key named 'validate'
 // the same as FormatCheck,but sounds more specific
 func (checker *Checker) Validate(input interface{}) (bool, string, error) {
 	return checker.FormatCheck(input)
+}
+
+// validate a struct methods whose method name ends with '"SVValidate"+<typ flags>'.
+// typ is short for 'type' to avoid the built-in word type.
+// what the string 'typ' stands for?
+// assume you are going to validate a struct User{Username string , Age int},
+// when creating a new user, 'username' field is required, however when updating a user,'username' is optional.
+// typ helps to tell which method validates on which case.
+// For example:
+// func (o O) UserSVValidateSVBCreate()(bool,string,error){
+//}
+// SV means 'Super Validate' ,which tells the checker this method will be checked when call ValidateMethods.
+// SVB means 'Super Validate Begin', which tells the checker to identify the typ flags.
+// in the example above, 'typ' is 'Create',and this method only works for 'checker.ValidateMethods(o, 'Create')'
+// func (o O) UserSVValidateSVBCreateSVSUpdate()(bool,string,error){
+//}
+// SV means 'Super Validate' ,which tells the checker this method will be checked when call ValidateMethods.
+// SVB means 'Super Validate Begin', which tells the checker to identify the typ flags.
+// SVS meas 'Super Validate Separate', which takes typ flags apart.
+// in the example above, this method only works for 'checker.ValidateMethods(o, 'Create', 'Update')'.
+// if typ is not set, all methods which end with 'Validate' or 'SVValidate' will be well checked
+func (checker *Checker) ValidateMethods(input interface{}, typ ...string) (bool, string, error) {
+	vType := reflect.TypeOf(input)
+	vValue := reflect.ValueOf(input)
+	var info string
+	var methodName string
+
+	var results []reflect.Value
+
+	for i := 0; i < vType.NumMethod(); i++ {
+		methodName = vType.Method(i).Name
+
+		// UserValidate,UserSVValidate
+		if strings.HasSuffix(methodName, "Validate") || strings.HasSuffix(methodName, "SVValidate") {
+			// all cases will validate methods end with 'Validate' or 'SVValidate'
+			results = vValue.Method(i).Call(nil)
+			if len(results) != 3 {
+				info = fmt.Sprintf("while validating method[%d],named '%s',illegal return values,want 3(bool,string,error) but got %d(%s)", i, methodName, len(results), valueListByType(results))
+				return false, info, errors.New(info)
+			}
+			var er error
+			ok, msg := results[0].Bool(), results[1].String()
+			if results[2].IsNil() {
+				er = nil
+			} else {
+				er = results[2].Interface().(error)
+			}
+			if ok {
+				continue
+			} else {
+				return ok, msg, er
+			}
+		} else {
+			if !(strings.Contains(methodName, "Validate") || strings.Contains(methodName, "SVValidate")) {
+				// UserVx
+				continue
+			} else {
+				// UserValidateXXX, UserSVValidateXXX
+				if !(strings.Contains(methodName, "ValidateSVB") || strings.Contains(methodName, "SVValidateSVB")) {
+					// UserValidateDrm
+					continue
+				} else {
+					// UserValidateSVBXXX
+					// validate by typ flags
+					var declared []string
+					j := strings.Index(methodName, "SVB")
+					declared = strings.Split(methodName[j+len("SVB"):], "SVS")
+					if hits(declared, typ) {
+						results = vValue.Method(i).Call(nil)
+						if len(results) != 3 {
+							info = fmt.Sprintf("while validating method[%d],named '%s',illegal return values,want 3(bool,string,error) but got %d(%s)", i, methodName, len(results), valueListByType(results))
+							return false, info, errors.New(info)
+						}
+						var er error
+						ok, msg := results[0].Bool(), results[1].String()
+						if results[2].IsNil() {
+							er = nil
+						} else {
+							er = results[2].Interface().(error)
+						}
+						if ok {
+							continue
+						} else {
+							return ok, msg, er
+						}
+					} else {
+						continue
+					}
+				}
+			}
+
+		}
+	}
+	return true, "success", nil
+}
+
+// when input a []reflect.Value{false, 5, 'example'}
+// returns 'bool,int,string'
+func valueListByType(r []reflect.Value) string {
+	typs := make([]string, 0)
+	for _, v := range r {
+		typs = append(typs, reflect.TypeOf(v.Interface()).String())
+	}
+	return strings.Join(typs, ",")
+}
+
+// whether two array can hits each other.
+// ["1","2","3"] hits ["2","3"]
+// ["1", "2", "3"] doesn't hit ["4"]
+func hits(arr1 []string, arr2 []string) bool {
+	for _, v1 := range arr1 {
+		for _, v2 := range arr2 {
+			if strings.ToLower(v1) == strings.ToLower(v2) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func checkRegex(input string, regex *regexp.Regexp) bool {

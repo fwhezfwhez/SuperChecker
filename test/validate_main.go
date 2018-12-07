@@ -37,6 +37,28 @@ type Order struct {
 	MailTypeCheckBox  string `validate:"func,inAndLength,lengthMoreThan3"`
 	MailTypeCheckBox2 string `validate:"function,lengthLessThan3|inAndLength"`
 }
+func (o Order) XXSVValidateSVBCreate()(bool,string,error){
+	return true,"xxsvcreate wrong",nil
+}
+func (o Order) XXValidate()(bool,string,error){
+	return true,"xxv wrong",nil
+}
+func (o Order) XXSVValidate()(bool,string,error){
+	return true,"xxsv wrong",nil
+}
+
+func (o Order) XXValidateSVBCreate()(bool,string,error){
+	return true,"xxcreate wrong",nil
+}
+
+
+
+func (o Order) XXValidateSVBCreateSVSUpdate()(bool,string,error){
+	return false,"xxsvcreateupdate wrong",nil
+}
+func (o Order) XXSVValidateSVBCreateSVSUpdate()(bool,string,error){
+	return true,"xxsvcreateupdate wrong",nil
+}
 
 func main() {
 	order := Order{
@@ -106,5 +128,19 @@ func main() {
 		fmt.Println(fmt.Sprintf("validate fail because of '%s'", msg))
 		return
 	}
+
+
+
+	ok, msg, er = checker.ValidateMethods(order,"create","update")
+	if er != nil {
+		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
+		return
+	}
+	if !ok {
+		fmt.Println(fmt.Sprintf("validate fail because of '%s'", msg))
+		return
+	}
 	fmt.Println("success")
+
+
 }
