@@ -40,4 +40,3 @@ func ChineseOnly(data interface{},fieldName string)(bool,string,error){
 	return true,v,nil
 }
 
-

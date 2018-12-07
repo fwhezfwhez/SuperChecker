@@ -130,7 +130,8 @@ func main() {
 	}
 
 
-
+	// ioc, inverse of control
+	// validate to combine as receiver to the dest struct
 	ok, msg, er = checker.ValidateMethods(order,"create","update")
 	if er != nil {
 		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))

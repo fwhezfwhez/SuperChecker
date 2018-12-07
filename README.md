@@ -81,13 +81,35 @@ type Order struct {
 	OrderUsername  string `validate:"regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$"`
 	OrderUsername2 string `validate:"regex,username"`
 
-	// RANGE, IN
+	// RANGE,IN
 	OrderStatus     int    `validate:"range,[1,2,3,4]"`
 	OrderStatusName string `validate:"in,[unpaid,paid,closed]"`
 
-	// FUNCTION, FUNC
-	MailTypeCheckBox  string `validate:"func,inAndLength"`
-	MailTypeCheckBox2 string `validate:"function,inAndLength"`
+	// FUNC, FUNCTION
+	MailTypeCheckBox  string `validate:"func,inAndLength,lengthMoreThan3"`
+	MailTypeCheckBox2 string `validate:"function,lengthLessThan3|inAndLength"`
+}
+func (o Order) XXSVValidateSVBCreate()(bool,string,error){
+	return true,"xxsvcreate wrong",nil
+}
+func (o Order) XXValidate()(bool,string,error){
+	return true,"xxv wrong",nil
+}
+func (o Order) XXSVValidate()(bool,string,error){
+	return true,"xxsv wrong",nil
+}
+
+func (o Order) XXValidateSVBCreate()(bool,string,error){
+	return true,"xxcreate wrong",nil
+}
+
+
+
+func (o Order) XXValidateSVBCreateSVSUpdate()(bool,string,error){
+	return false,"xxsvcreateupdate wrong",nil
+}
+func (o Order) XXSVValidateSVBCreateSVSUpdate()(bool,string,error){
+	return true,"xxsvcreateupdate wrong",nil
 }
 
 func main() {
@@ -113,13 +135,13 @@ func main() {
 		OrderStatusName: "closed",
 
 		MailTypeCheckBox:  "midMail",
-		MailTypeCheckBox2: "",
+		MailTypeCheckBox2: "midMail",
 	}
 
 	checker := superChecker.GetChecker()
 	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
 		v := superChecker.ToString(in)
-		maxLength := 3
+		maxLength := 7
 		if len(v) > maxLength {
 			return false, fmt.Sprintf("while validating field '%s', rule key '%s' over length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
 		}
@@ -131,6 +153,24 @@ func main() {
 		}
 		return false, fmt.Sprintf("while validating field '%s', rule key '%s',  value '%s' not in '%v'", fieldName, "inAndLength", v, vrange), nil
 	}, "inAndLength")
+	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+		v := superChecker.ToString(in)
+		minLength := 3
+		if len(v) < minLength {
+			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", minLength, len(v)), nil
+		}
+		return true, "success", nil
+	},"lengthmorethan3")
+
+	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+		v := superChecker.ToString(in)
+		maxLength := 3
+		if len(v) > maxLength {
+			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
+		}
+		return true, "success", nil
+	},"lengthlessthan3")
+
 	ok, msg, er := checker.Validate(order)
 	if er != nil {
 		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
@@ -140,8 +180,24 @@ func main() {
 		fmt.Println(fmt.Sprintf("validate fail because of '%s'", msg))
 		return
 	}
+
+
+	// ioc, inverse of control
+	// validate to combine as receiver to the dest struct
+	ok, msg, er = checker.ValidateMethods(order,"create","update")
+	if er != nil {
+		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
+		return
+	}
+	if !ok {
+		fmt.Println(fmt.Sprintf("validate fail because of '%s'", msg))
+		return
+	}
 	fmt.Println("success")
+
+
 }
+
 
 ```
 
@@ -236,3 +292,73 @@ checker.AddFunc(func(in interface{}, fieldName string)(bool,string,error){
 ```
 
 **More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**
+
+## How to validate a model by its method and the model as receiver
+
+**tips:**
+**XXXValidate()(bool,string,error)**,
+**XXXSVValidate()bool,string,error)**,
+these two format methods will be validate by `checker.ValidateMethods(o)`
+
+**XXXValidateSVBTyp1SVSTyp2SVSTyp3**
+**XXXSVValidateSVBTyp1SVSTyp2SVSTyp3**
+these two format methods will be validated as options by `checker.ValidateMethods(o, typ1, typ2, typ3)`
+by the way, **`checker.ValidateMethods(o, typ1, typ2, typ3)` will also validate `XXXValidate()` and `XXXSVValidate()`**
+```go
+type O struct{
+    Username string
+}
+
+// v1
+func (o O) OLengthValidate()(bool,string,error){
+      if o.Username>5 && o.Username<100{
+	      return true,"success",nil
+	  }
+      return false,"length should be between 5 and 100", nil
+}
+
+// v2
+func (o O ) OValidateSVBCreate()(bool,string,error){
+      if o.Username != ""{
+	      return true,"success",nil
+	  }
+      return false,"length should be between 5 and 100", nil
+}
+// v3
+func (o O ) OValidateSVBUpdate()(bool,string,error){
+      if o.Username == "admin"{
+	      return false,"admin should not be updated",nil
+	  }
+      return true,"success", nil
+}
+
+// v4
+func (o O ) OValidateSVBUpdateSVSCreate()(bool,string,error){
+      if o.Username == "admin"{
+	      return false,"admin should not be updated",nil
+	  }
+      return true,"success", nil
+}
+func main(){
+    ...
+	// o:=O{Username:"he"}
+	o := O{Username:"hellworld"}
+	// v1 will be validated
+	ok,msg,e:=checker.ValidateMethods(o)
+
+	// v1,v2,v4 will be validated
+    ok,msg,e =checker.ValidateMethods(o, "create")
+
+	// v1,v3,v4 will be validated
+	ok,msg,e:=checker.ValidateMethods(o, "update")
+
+	// v1,v2,v3,v4 will all be validated
+    ok,msg,e:=checker.ValidateMethods(o, "update","create")
+
+	if e!=nil{
+	    handle(e)
+	}
+	fmt.Println(ok,msg)
+}
+```
+
