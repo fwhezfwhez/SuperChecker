@@ -233,19 +233,19 @@ When a field will fit several regex rules, use it like
 The tag value consists of two parts, type and rule(key).
 type and rule used like:
 ```go
-type User struct{
-    Age int `validate:"int,0:200"`  // age should be integer and between 0 and 200
-	// Age int `validate:"int,:200"`  // age should be integer and less than 200
-	// Age int `validate:"int,0:"`  // age should be integer and bigger than 0
+	type User struct {
+		Age int `validate:"int,0:200"` // age should be integer and between 0 and 200
+		// Age int `validate:"int,:200"`  // age should be integer and less than 200
+		// Age int `validate:"int,0:"`  // age should be integer and bigger than 0
 
-    Salary float64 `validate:"float,0:1000000000"`  // Salary  should be float type(float32,float64) and between 0 and 1000000000
-	// Salary float64 `validate:"float,:1000000000"`  // Salary  should be float type(float32,float64) and less than 1000000000
-	// Salary float64 `validate:"float,0:"`  // Salary  should be float type(float32,float64) and bigger than 0
+		Salary float64 `validate:"float,0:1000000000"` // Salary  should be float type(float32,float64) and between 0 and 1000000000
+		// Salary float64 `validate:"float,:1000000000"`  // Salary  should be float type(float32,float64) and less than 1000000000
+		// Salary float64 `validate:"float,0:"`  // Salary  should be float type(float32,float64) and bigger than 0
 
-	// InTime    time.Time       `validate:"time.Time"`// golang support deliver the origin time type ,it's good to use time.Time field to bind data
-	// if insist on using string type to bind time data,use it like:
-    InTimeStr string          `validate:"time.Time,2006.01.2 15:04:05"` // InTimeStr should fit the format '2006.01.2 15:04:05'
-}
+		// InTime    time.Time       `validate:"time.Time"`// golang support deliver the origin time type ,it's good to use time.Time field to bind data
+		// if insist on using string type to bind time data,use it like:
+		InTimeStr string `validate:"time.Time,2006.01.2 15:04:05"` // InTimeStr should fit the format '2006.01.2 15:04:05'
+	}
 ```
 The tag value like 'time.Time','int','float' is the type ,and the latter string words is its rule,like '0:200'.
 **int means int type ,it's ok to write like:**
@@ -272,21 +272,21 @@ type User struct {
 	Introduce    string       `validate:"func,introduction"`
 }
 ...
-checker.AddFunc(func(in interface{}, fieldName string)(bool,string,error){
-		v,ok := in.(string)
+	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
+		v, ok := in.(string)
 		if !ok {
 			return false, "assertion error,in is not a string type", errors.New("assertion error,in is not a string type")
 		}
 		// deal with v
 		// length limit
-		if len(v) >1000 {
+		if len(v) > 1000 {
 			return false, fmt.Sprintf("max len is 1000,but got %d", len(v)), nil
 		}
 		// abuse words limit
-		if strings.Contains(v,"fuck") {
+		if strings.Contains(v, "fuck") {
 			return false, fmt.Sprintf("'%s' contains bad words '%s'", v, "fuck"), nil
 		}
-		return true,"success",nil
+		return true, "success", nil
 	}, "introduction")
 ...
 ```

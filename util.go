@@ -50,10 +50,10 @@ func ToString(arg interface{}, timeFormat ...string) string {
 	case float64:
 		return strconv.FormatFloat(v, 'f', -1, 64)
 	case time.Time:
-		if len(timeFormat) == 1{
+		if len(timeFormat) == 1 {
 			return v.Format(timeFormat[0])
 		}
-		return  v.Format("2006-01-02 15:04:05")
+		return v.Format("2006-01-02 15:04:05")
 	case fmt.Stringer:
 		return v.String()
 	case types.Pointer:
@@ -63,8 +63,8 @@ func ToString(arg interface{}, timeFormat ...string) string {
 	}
 }
 
-func RemovePrefix(s string,prefix string) string{
-	if !strings.HasPrefix(s, prefix){
+func RemovePrefix(s string, prefix string) string {
+	if !strings.HasPrefix(s, prefix) {
 		return s
 	}
 	return s[len(prefix):]
