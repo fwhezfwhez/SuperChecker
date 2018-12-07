@@ -305,60 +305,61 @@ these two format methods will be validate by `checker.ValidateMethods(o)`
 these two format methods will be validated as options by `checker.ValidateMethods(o, typ1, typ2, typ3)`
 by the way, **`checker.ValidateMethods(o, typ1, typ2, typ3)` will also validate `XXXValidate()` and `XXXSVValidate()`**
 ```go
-type O struct{
-    Username string
+type O struct {
+	Username string
 }
 
 // v1
-func (o O) OLengthValidate()(bool,string,error){
-      if o.Username>5 && o.Username<100{
-	      return true,"success",nil
-	  }
-      return false,"length should be between 5 and 100", nil
+func (o O) OLengthValidate() (bool, string, error) {
+	if o.Username > 5 && o.Username < 100 {
+		return true, "success", nil
+	}
+	return false, "length should be between 5 and 100", nil
 }
 
 // v2
-func (o O ) OValidateSVBCreate()(bool,string,error){
-      if o.Username != ""{
-	      return true,"success",nil
-	  }
-      return false,"length should be between 5 and 100", nil
+func (o O) OValidateSVBCreate() (bool, string, error) {
+	if o.Username != "" {
+		return true, "success", nil
+	}
+	return false, "length should be between 5 and 100", nil
 }
+
 // v3
-func (o O ) OValidateSVBUpdate()(bool,string,error){
-      if o.Username == "admin"{
-	      return false,"admin should not be updated",nil
-	  }
-      return true,"success", nil
+func (o O) OValidateSVBUpdate() (bool, string, error) {
+	if o.Username == "admin" {
+		return false, "admin should not be updated", nil
+	}
+	return true, "success", nil
 }
 
 // v4
-func (o O ) OValidateSVBUpdateSVSCreate()(bool,string,error){
-      if o.Username == "admin"{
-	      return false,"admin should not be updated",nil
-	  }
-      return true,"success", nil
+func (o O) OValidateSVBUpdateSVSCreate() (bool, string, error) {
+	if o.Username == "admin" {
+		return false, "admin should not be updated", nil
+	}
+	return true, "success", nil
 }
-func main(){
-    ...
+func main() {
+	...
 	// o:=O{Username:"he"}
-	o := O{Username:"hellworld"}
+	o := O{Username: "hellworld"}
 	// v1 will be validated
-	ok,msg,e:=checker.ValidateMethods(o)
+	ok, msg, e := checker.ValidateMethods(o)
 
 	// v1,v2,v4 will be validated
-    ok,msg,e =checker.ValidateMethods(o, "create")
+	ok, msg, e = checker.ValidateMethods(o, "create")
 
 	// v1,v3,v4 will be validated
-	ok,msg,e:=checker.ValidateMethods(o, "update")
+	ok, msg, e := checker.ValidateMethods(o, "update")
 
 	// v1,v2,v3,v4 will all be validated
-    ok,msg,e:=checker.ValidateMethods(o, "update","create")
+	ok, msg, e := checker.ValidateMethods(o, "update", "create")
 
-	if e!=nil{
-	    handle(e)
+	if e != nil {
+		handle(e)
 	}
-	fmt.Println(ok,msg)
+	fmt.Println(ok, msg)
 }
 ```
 

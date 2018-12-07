@@ -25,18 +25,19 @@ import (
 //     }
 //     fmt.Println("success")
 // }
-func ChineseOnly(data interface{},fieldName string)(bool,string,error){
-    v :=ToString(data)
-    if data == ""{
-    	return true,"success",nil
+func ChineseOnly(data interface{}, fieldName string) (bool, string, error) {
+	v := ToString(data)
+	if data == "" {
+		return true, "success", nil
 	}
-    if r,ok := compiledMap["chineseonly"]; !ok {
-    	panic(errors.New("chineseonly not found in compiledMap"))
+	if r, ok := compiledMap["chineseonly"]; !ok {
+		panic(errors.New("chineseonly not found in compiledMap"))
 	} else {
-		if !r.MatchString(v){
+		if !r.MatchString(v) {
 			return false, fmt.Sprintf("while validating field '%s',regex rule '%s',got unmatched value '%s'", fieldName, strconv.QuoteToASCII(r.String()), v), nil
 		}
 	}
-	return true,v,nil
+	return true, v, nil
 }
+
 
