@@ -3,7 +3,9 @@ package superChecker
 import (
 	"errors"
 	"fmt"
+	"github.com/fwhezfwhez/jsoncrack"
 	"go/types"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -30,7 +32,8 @@ func SmartPrint(i interface{}) {
 // ToString Change arg to string
 func ToString(arg interface{}, timeFormat ...string) string {
 	if len(timeFormat) > 1 {
-		panic(errors.New(fmt.Sprintf("timeFormat's length should be one")))
+		log.SetFlags(log.Llongfile | log.LstdFlags)
+		log.Println(errors.New(fmt.Sprintf("timeFormat's length should be one")))
 	}
 	switch v := arg.(type) {
 	case int:
@@ -54,6 +57,11 @@ func ToString(arg interface{}, timeFormat ...string) string {
 			return v.Format(timeFormat[0])
 		}
 		return v.Format("2006-01-02 15:04:05")
+	case jsoncrack.Time:
+		if len(timeFormat)==1 {
+			return v.Time().Format(timeFormat[0])
+		}
+	    return v.Time().Format("2006-01-02 15:04:05")
 	case fmt.Stringer:
 		return v.String()
 	case types.Pointer:

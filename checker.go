@@ -3,6 +3,7 @@ package superChecker
 import (
 	"errors"
 	"fmt"
+	"github.com/fwhezfwhez/jsoncrack"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -318,7 +319,7 @@ func (checker *Checker) FormatCheck(input interface{}) (bool, string, error) {
 	vType := reflect.TypeOf(input)
 	vValue := reflect.ValueOf(input)
 	valueStr := ""
-	var ok, ok1, ok2 bool
+	var ok, ok1, ok2, ok3 bool
 	if checker.mode == DEBUG {
 		SmartPrint(input)
 	}
@@ -456,8 +457,9 @@ L:
 		// func validate,
 		// int,float,time validate
 		_, ok1 = value.(time.Time)
+		_, ok3 = value.(jsoncrack.Time)
 		ok2 = strings.Split(tagValue, ",")[0] == "time.time"
-		ok = ok1 || ok2
+		ok = ok1 || ok2 || ok3
 		if ok && strings.Contains(tagValue, ",") && strings.Split(tagValue, ",")[1] != "" {
 			valueStr = ToString(value, strings.Split(tagValue, ",")[1])
 		} else {

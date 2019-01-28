@@ -37,27 +37,31 @@ type Order struct {
 	MailTypeCheckBox  string `validate:"func,inAndLength,lengthMoreThan3"`
 	MailTypeCheckBox2 string `validate:"function,lengthLessThan3|inAndLength"`
 }
-func (o Order) XXSVValidateSVBCreate()(bool,string,error){
-	return true,"xxsvcreate wrong",nil
-}
-func (o Order) XXValidate()(bool,string,error){
-	return true,"xxv wrong",nil
-}
-func (o Order) XXSVValidate()(bool,string,error){
-	return true,"xxsv wrong",nil
-}
+//func (o Order) XXSVValidateSVBCreate()(bool,string,error){
+//	return true,"xxsvcreate wrong",nil
+//}
+//func (o Order) XXValidate()(bool,string,error){
+//	return true,"xxv wrong",nil
+//}
+//func (o Order) XXSVValidate()(bool,string,error){
+//	return true,"xxsv wrong",nil
+//}
 
-func (o Order) XXValidateSVBCreate()(bool,string,error){
-	return true,"xxcreate wrong",nil
-}
+//func (o Order) XXValidateSVBCreate()(bool,string,error){
+//	return true,"xxcreate wrong",nil
+//}
+//
+//
+//
+//func (o Order) XXValidateSVBCreateSVSUpdate()(bool,string,error){
+//	return true,"success",nil
+//}
+//func (o Order) XXSVValidateSVBCreateSVSUpdate()(bool,string,error){
+//	return true,"xxsvcreateupdate wrong",nil
+//}
 
-
-
-func (o Order) XXValidateSVBCreateSVSUpdate()(bool,string,error){
-	return false,"xxsvcreateupdate wrong",nil
-}
-func (o Order) XXSVValidateSVBCreateSVSUpdate()(bool,string,error){
-	return true,"xxsvcreateupdate wrong",nil
+func (o Order) ValidateSVBCreate()(bool,string,error){
+	return false,"xxsvcreate wrong",nil
 }
 
 func main() {
@@ -132,7 +136,7 @@ func main() {
 
 	// ioc, inverse of control
 	// validate to combine as receiver to the dest struct
-	ok, msg, er = checker.ValidateMethods(order,"create","update")
+	ok, msg, er = checker.ValidateMethods(order,"create")
 	if er != nil {
 		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
 		return
