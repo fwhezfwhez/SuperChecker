@@ -203,12 +203,14 @@ func (checker *Checker) IsBuilderContainKey(key string) bool {
 
 // whether the func pool contains the func key
 func (checker *Checker) ContainFunc(key string) bool {
+	key = strings.ToLower(key)
 	_, ok := checker.ruler.Funcs[key]
 	return ok
 }
 
 // get func by key
 func (checker *Checker) GetFunc(key string) Func {
+	key = strings.ToLower(key)
 	return checker.ruler.Funcs[key]
 }
 
@@ -216,7 +218,7 @@ func (checker *Checker) GetFunc(key string) Func {
 // keyAndPath stands for the func's key and func's define path.
 // key must specific and must be keyAndPath[0], path is optional.
 // when the length of keyAndPath is 0 or >2 , then throws error.
-// when the length of keyAndPath is 1, key is keyAndPath[0], path is the caller stack.
+// when the length of keyAndPath is 1, key is keyAndPath[0], path is the caller stack depth 1.
 // when the length of keyAndPath is 2, key is keyAndPath[0], path is keyAndPath[1].
 func (checker *Checker) AddFunc(f func(in interface{}, fieldName string) (bool, string, error), keyAndPath ...string) error {
 	if len(keyAndPath) > 2 {
@@ -247,6 +249,9 @@ func (checker *Checker) GetDefaultBuilder() map[string]*regexp.Regexp {
 	return checker.ruler.defaultRegexBuilder
 }
 
+// Latest version has stop this's developing replaced by functions like 'FormatCheck' 'Validate' 'ValidateMethods' which alias with tag 'validate'
+// However the old usages are remained, function is access if you insist on using it
+//
 // support for string input or type that can be transfer to a string or an object which has function String().
 // notice:
 // 1. the value of tag 'superCheck' can be either upper or lower or mixed,
