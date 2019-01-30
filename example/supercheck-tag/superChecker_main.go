@@ -3,7 +3,7 @@
 // 'validate' tag is to replace the old ussages:
 // "Name string `superChecker:"key1,key2"`" equals to "Name string `validate:"regex,key1,key2"`"
 
-package main
+package supercheck_tag
 
 import (
 	"fmt"

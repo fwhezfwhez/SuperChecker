@@ -1,4 +1,4 @@
-package main
+package validate_tag
 
 import (
 	"fmt"
