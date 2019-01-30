@@ -2,6 +2,7 @@ a validator and checker tool. validator works for validating whether the input d
 
 # superchecker
 [![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/fwhezfwhez/SuperChecker)
+[![Build Status]( https://www.travis-ci.org/fwhezfwhez/SuperChecker.svg?branch=master)]( https://www.travis-ci.org/fwhezfwhez/SuperChecker)
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -118,7 +119,7 @@ package main
 import (
 	"fmt"
 	"github.com/shopspring/decimal"
-	"superChecker"
+	"github.com/fwhezfwhez/SuperChecker"
 	"time"
 )
 
@@ -300,7 +301,6 @@ The tag value consists of two parts, **type** and **rule(key)**.Let's see it in 
 | regex | ^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$ | value should be pass this regex validate, value should be string-able types(int,float,time,fmt.Stringer) |
 | regex | username | value should pass an in-built or after-added regex key 'username', value should be string-able types(int,float,time,fmt.Stringer), make sure using "checker.AddRegex("username","^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$") before you use this key" |
 | func/function | lengthlt10| value should be less than length by 10, make sure using "checker.AddFunc()" |
-
 | range/in | [1,2,3,4]/[paid,unpaid,retreat] | value should be contained in the list |
 
 type and rule used like:

@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	"github.com/fwhezfwhez/SuperChecker"
 	"github.com/shopspring/decimal"
-	"superChecker"
 	"time"
 )
 
@@ -37,6 +37,7 @@ type Order struct {
 	MailTypeCheckBox  string `validate:"func,inAndLength,lengthMoreThan3"`
 	MailTypeCheckBox2 string `validate:"function,lengthLessThan3|inAndLength"`
 }
+
 //func (o Order) XXSVValidateSVBCreate()(bool,string,error){
 //	return true,"xxsvcreate wrong",nil
 //}
@@ -60,8 +61,8 @@ type Order struct {
 //	return true,"xxsvcreateupdate wrong",nil
 //}
 
-func (o Order) ValidateSVBCreate()(bool,string,error){
-	return false,"xxsvcreate wrong",nil
+func (o Order) ValidateSVBCreate() (bool, string, error) {
+	return false, "xxsvcreate wrong", nil
 }
 
 func main() {
@@ -105,23 +106,23 @@ func main() {
 		}
 		return false, fmt.Sprintf("while validating field '%s', rule key '%s',  value '%s' not in '%v'", fieldName, "inAndLength", v, vrange), nil
 	}, "inAndLength")
-	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
 		v := superChecker.ToString(in)
 		minLength := 3
 		if len(v) < minLength {
 			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", minLength, len(v)), nil
 		}
 		return true, "success", nil
-	},"lengthmorethan3")
+	}, "lengthmorethan3")
 
-	checker.AddFunc(func(in interface{}, fieldName string)(bool, string, error){
+	checker.AddFunc(func(in interface{}, fieldName string) (bool, string, error) {
 		v := superChecker.ToString(in)
 		maxLength := 3
 		if len(v) > maxLength {
 			return false, fmt.Sprintf("while validating field '%s', rule key '%s' too short length,want %d ,but got %d", fieldName, "inAndLength", maxLength, len(v)), nil
 		}
 		return true, "success", nil
-	},"lengthlessthan3")
+	}, "lengthlessthan3")
 
 	ok, msg, er := checker.Validate(order)
 	if er != nil {
@@ -133,10 +134,9 @@ func main() {
 		return
 	}
 
-
 	// ioc, inverse of control
 	// validate to combine as receiver to the dest struct
-	ok, msg, er = checker.ValidateMethods(order,"create")
+	ok, msg, er = checker.ValidateMethods(order, "create")
 	if er != nil {
 		fmt.Println(fmt.Sprintf("got an error, '%s'", er.Error()))
 		return
@@ -146,6 +146,5 @@ func main() {
 		return
 	}
 	fmt.Println("success")
-
 
 }

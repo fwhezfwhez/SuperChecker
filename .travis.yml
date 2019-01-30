@@ -10,6 +10,7 @@ sudo: true
 go_import_path: github.com/fwhezfwhez/SuperChecker
 before_install:
   - go get github.com/fwhezfwhez/jsoncrack
+  - go get github.com/shopspring/decimal
 script:
   - go test ./
 notifications:
