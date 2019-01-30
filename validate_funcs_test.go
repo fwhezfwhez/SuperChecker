@@ -14,7 +14,8 @@ func TestChineseOnly(t *testing.T) {
 	checker.AddFunc(ChineseOnly, "chineseOnly")
 	ok, msg, er := checker.Validate(user)
 	if er != nil {
-		panic(er)
+		fmt.Println(er.Error())
+		t.Fail()
 	}
 	if !ok {
 		fmt.Println(msg)
