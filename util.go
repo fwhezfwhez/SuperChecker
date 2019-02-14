@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fwhezfwhez/jsoncrack"
-	"go/types"
 	"log"
 	"reflect"
 	"strconv"
@@ -18,7 +17,7 @@ func SmartPrint(i interface{}) {
 	vValue := reflect.ValueOf(i)
 	vType := reflect.TypeOf(i)
 	for i := 0; i < vValue.NumField(); i++ {
-		kv[vType.Field(i).Name] = vValue.Field(i)
+		kv[vType.Field(i).Name] = vValue.Field(i).Interface()
 	}
 	fmt.Println("获取到数据:")
 	for k, v := range kv {
@@ -35,7 +34,8 @@ func ToString(arg interface{}, timeFormat ...string) string {
 		log.SetFlags(log.Llongfile | log.LstdFlags)
 		log.Println(errors.New(fmt.Sprintf("timeFormat's length should be one")))
 	}
-	switch v := arg.(type) {
+	var tmp = reflect.Indirect(reflect.ValueOf(arg)).Interface()
+	switch v := tmp.(type) {
 	case int:
 		return strconv.Itoa(v)
 	case int8:
@@ -58,14 +58,14 @@ func ToString(arg interface{}, timeFormat ...string) string {
 		}
 		return v.Format("2006-01-02 15:04:05")
 	case jsoncrack.Time:
-		if len(timeFormat)==1 {
+		if len(timeFormat) == 1 {
 			return v.Time().Format(timeFormat[0])
 		}
-	    return v.Time().Format("2006-01-02 15:04:05")
+		return v.Time().Format("2006-01-02 15:04:05")
 	case fmt.Stringer:
 		return v.String()
-	case types.Pointer:
-		return "not for ptr,you might need &ptr"
+	case reflect.Value:
+		return ToString(v.Interface(), timeFormat...)
 	default:
 		return ""
 	}
