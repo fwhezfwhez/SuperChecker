@@ -4,7 +4,8 @@
 </p>
 
 <p align="center">
-[![Godoc](http://img.shields.io/badge/godoc-reference-blue.svg?style=flat)](https://godoc.org/github.com/fwhezfwhez/SuperChecker)[![Build Status]( https://www.travis-ci.org/fwhezfwhez/SuperChecker.svg?branch=master)]( https://www.travis-ci.org/fwhezfwhez/SuperChecker)
+	<a href="https://godoc.org/github.com/fwhezfwhez/SuperChecker"><img src="http://img.shields.io/badge/godoc-reference-blue.svg?style=flat"></a>
+	<a href="https://www.travis-ci.org/fwhezfwhez/SuperChecker"><img src="https://www.travis-ci.org/fwhezfwhez/SuperChecker.svg?branch=master"></a>
 </p>
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
