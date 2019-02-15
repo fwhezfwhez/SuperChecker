@@ -401,9 +401,9 @@ type User struct {
 
 | concept | short for what | example | declared typs(case-not-sensitive) | desc |
 |:--------|:--------| :----| :----- | :----|
-| SVValidate | super valudate | `func (o Object) ObjectSVValidate()(bool,string,error)` | all | to declare the method is marked to be validated by `checker.ValidateMethods(o)` , sv can be ignored, `ObjectSVValidate` equals to `ObjectValidate`|
-| SVB | super valudate begin | `func (o Object) ObjectSVValidateSVBCreate()(bool,string,error)` | create | to declare a marked method begin spot,after 'SVB' is the `typs` `checker.ValidateMethods(o, "create")` |
-| SVS | super valudate seperate | `func (o Object) ObjectSVValidateSVBCreateSVSUpdate()(bool,string,error)` | create, update| to seperate 'typs' after 'SVB',`checker.ValidateMethods(o, "create", "update")` |
+| SVValidate | super validate | `func (o Object) ObjectSVValidate()(bool,string,error)` | all | to declare the method is marked to be validated by `checker.ValidateMethods(o)` , sv can be ignored, `ObjectSVValidate` equals to `ObjectValidate`|
+| SVB | super validate begin | `func (o Object) ObjectSVValidateSVBCreate()(bool,string,error)` | create | to declare a marked method begin spot,after 'SVB' is the `typs` `checker.ValidateMethods(o, "create")` |
+| SVS | super validate seperate | `func (o Object) ObjectSVValidateSVBCreateSVSUpdate()(bool,string,error)` | create, update| to seperate 'typs' after 'SVB',`checker.ValidateMethods(o, "create", "update")` |
 
 **details:**
 - **typs choose which methods to be validate, they follow the HIT rule,** `[create, update]` **hits** `[ValidateSVBCreate, SVValidateSVBCreateSVSUpdate, Validate, ValidateSVBUpdate]`
