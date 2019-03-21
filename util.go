@@ -77,3 +77,12 @@ func RemovePrefix(s string, prefix string) string {
 	}
 	return s[len(prefix):]
 }
+
+func in(value string, arr ...string)bool{
+    for _,v:=range arr {
+    	if v== value{
+    		return true
+		}
+	}
+    return false
+}

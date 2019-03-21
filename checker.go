@@ -343,7 +343,8 @@ L:
 
 		// the empty value will be ignore if no 'notnull' flag
 		if !strings.Contains(strings.ToLower(tagValue), "notnull") {
-			if ToString(value) == "" {
+			var zeroTime time.Time
+			if ToString(value) == "" || ToString(value) == zeroTime.Format("2006-01-02 15:04:05") {
 				continue
 			}
 		}
@@ -463,7 +464,7 @@ L:
 		// int,float,time validate
 		_, ok1 = value.(time.Time)
 		_, ok3 = value.(jsoncrack.Time)
-		ok2 = strings.Split(tagValue, ",")[0] == "time.time"
+		ok2 = in(strings.Split(tagValue, ",")[0],"time.time", "time.Time")
 		ok = ok1 || ok2 || ok3
 		if ok && strings.Contains(tagValue, ",") && strings.Split(tagValue, ",")[1] != "" {
 			valueStr = ToString(value, strings.Split(tagValue, ",")[1])
@@ -602,7 +603,7 @@ L:
 						return false, vType.Field(i).Name + "format required float but got " + valueStr, nil
 					}
 				}
-			} else if tagValue == "time.time" {
+			} else if in(tagValue , "time.time", "time.Time") {
 				//"2006/1/2 15:04:05"
 				if rule != "" {
 					_, er := time.ParseInLocation(rule, valueStr, time.Local)
@@ -628,7 +629,7 @@ L:
 					return false, vType.Field(i).Name + "format required float but got " + valueStr, nil
 				}
 
-			} else if tagValue == "time.Time" {
+			} else if in(tagValue , "time.Time", "time.time") {
 				//"2006/1/2 15:04:05"
 				_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
 				if er != nil {
@@ -841,6 +842,395 @@ func (checker *Checker) CheckFromPool(input string, key string) (bool, error) {
 		return checker.ruler.defaultRegexBuilder[key].MatchString(input), nil
 	}
 	return r.MatchString(input), nil
+}
+
+// This method is used for the case when dest struct has no 'validate' tag and tag value.
+// Tag name can be specific,like 'json'.
+//
+// tagKey value should be single `json:""username` or 'username' as its first word splitting by ','
+// these tags are ok `json:"username"`, `json:"username,x"`, `json:"username,x,y,z,n,m,q"
+//
+// type User struct{
+//     Username string `json:"username"`
+// }
+//
+// user := User{ Username:"LiLei" }
+// checker := SuperChecker.GetChecker()
+// ok,msg,e:=checker.ValidateByTagKeyAndMapValue(user, "json", map[string]string{ "username": "regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$")}
+// fmt.Println(ok, msg, e)
+func (checker *Checker) ValidateByTagKeyAndMapValue(dest interface{}, tagKey string, tags map[string]string) (bool, string, error) {
+	dest = reflect.Indirect(reflect.ValueOf(dest)).Interface()
+
+	vtype := reflect.TypeOf(dest)
+	vvalue := reflect.ValueOf(dest)
+
+	// for User struct,
+	// "UserName" is typeName,
+	// "json" is tagKey,
+	// "username" is tagKeyValue,
+	// "regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$" is tagValue
+	var typeName string
+	var tagKeyValue string
+	var tagValue string
+
+	var ok bool
+	var msg string
+	var e error
+
+	for i := 0; i < vvalue.NumField(); i ++ {
+		tagKeyValue = strings.Split(vtype.Field(i).Tag.Get(tagKey),",")[0]
+		if tagKeyValue == "" || tagKeyValue == "-" {
+			continue
+		}
+		tagValue, ok =tags[tagKeyValue]
+		if !ok {
+			continue
+		}
+
+		typeName = vtype.Field(i).Name
+        ok,msg, e =checker.ValidateOne(typeName, vvalue.Field(i).Interface(), tagValue)
+        if ok && e==nil{
+        	continue
+		}
+        return ok,msg,e
+	}
+    return true, "success", nil
+}
+
+func (checker *Checker) ValidateOne(typeName string, value interface{}, tagValue string) (bool, string, error) {
+	if whetherLowerCase(tagValue) {
+		tagValue = strings.ToLower(tagValue)
+	}
+
+	// `validate:""` `validate:"-"` will be ignored
+	if tagValue == "" || tagValue == "-" {
+		return true, "success", nil
+	}
+
+	// the empty value will be ignore if no 'notnull' flag
+	if !strings.Contains(strings.ToLower(tagValue), "notnull") {
+		if ToString(value) == "" {
+			return true, "success", nil
+		}
+		if whetherLowerCase(tagValue) {
+			tagValue = strings.ToLower(tagValue)
+		}
+
+		// `validate:""` `validate:"-"` will be ignored
+		if tagValue == "" || tagValue == "-" {
+			return true, "success", nil
+		}
+
+		// the empty value will be ignore if no 'notnull' flag
+		if !strings.Contains(strings.ToLower(tagValue), "notnull") {
+			var zeroTime time.Time
+			valueStr := ToString(value)
+			if valueStr == "" || valueStr == zeroTime.Format("2006-01-02 15:04:05") {
+				return true, "success", nil
+			}
+		}
+
+		tmp := strings.Split(tagValue, ",")
+		flag := strings.ToLower(tmp[0])
+		if !strings.Contains(strings.Join(flagRange, " "), flag) {
+			return false,
+				fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", typeName, flag, flagRange),
+				errors.New(fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", typeName, flag, flagRange),
+				)
+		}
+	}
+
+	tmp := strings.Split(tagValue, ",")
+	flag := strings.ToLower(tmp[0])
+	if !strings.Contains(strings.Join(flagRange, " "), flag) {
+		return false,
+			fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", typeName, flag, flagRange),
+			errors.New(fmt.Sprintf("while validating field '%s',flag '%s' is not contained in the flagRange '%v'", typeName, flag, flagRange),
+			)
+	}
+
+	var rule string
+	if len(tmp) > 1 {
+		rule = strings.Join(tmp[1:], ",")
+	}
+
+	var valueStr string
+	// flag range/in validate
+	if flag == "range" || flag == "in" {
+		if !strings.HasPrefix(rule, "[") || !strings.HasSuffix(rule, "]") {
+			return false,
+				fmt.Sprintf("field '%s' range/in flag must have its rule format like '[x,x,x,x,x] but got '%s'", typeName, rule),
+				errors.New(fmt.Sprintf("field '%s' range/in flag must have its rule format like '[x,x,x,x,x] but got '%s'", typeName, rule))
+		}
+		valueStr = ToString(value)
+		arr := strings.Split(rule[1:len(rule)-1], ",")
+		for _, v := range arr {
+			if v == valueStr {
+				return true, "success", nil
+			}
+		}
+		return false, fmt.Sprintf("field '%s' required in '%s' but got '%s'", typeName, rule, valueStr), nil
+	}
+
+	// regex validate
+	// regex validate is used to replace superChecker tag
+	// Name string `superChecker:"key"`  <==> Name string `validate:"regex,key"`
+	if flag == "regex" {
+		if whetherLowerCase(tagValue) {
+			rule = strings.ToLower(rule)
+		}
+		valueStr = ToString(value)
+		// rule is raw regex
+		if strings.HasPrefix(rule, `^`) && strings.HasSuffix(rule, `$`) {
+			ok, er := checker.Check(valueStr, rule)
+			if er != nil {
+				return false,
+					fmt.Sprintf("while validating field '%s' regex '%s' throws an error '%s'", typeName, strconv.QuoteToASCII(rule), er.Error()),
+					errors.New(fmt.Sprintf("while validating field '%s' regex '%s' throws an error '%s'", typeName, strconv.QuoteToASCII(rule), er.Error()))
+			}
+			if !ok {
+				return false,
+					fmt.Sprintf("while validating field '%s' regex '%s' but got unmatched value '%s'", typeName, strconv.QuoteToASCII(rule), valueStr),
+					nil
+			}
+			return true, "success", nil
+		} else {
+			if strings.Contains(rule, "|") {
+				// rule formated like 'key1|key2|key3' which can be separated by '|'
+				rules := strings.Split(rule, "|")
+				for j, v := range rules {
+					ok, er := checker.CheckFromPool(valueStr, v)
+					if er != nil {
+						return false,
+							fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", typeName, j, v, er.Error()),
+							errors.New(fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", typeName, j, v, er.Error()))
+					}
+					if ok {
+						return true, "success", nil
+					}
+					if j == len(rules)-1 {
+						return false, fmt.Sprintf("while validating field '%s', regex key group %v all fail, got unmatched value '%s'", typeName, rules, valueStr), nil
+					}
+				}
+			} else if strings.Contains(rule, ",") {
+				// rule formated like 'key1,key2,key3' which can be separated by ','
+				rules := strings.Split(rule, ",")
+				for i, v := range rules {
+					ok, er := checker.CheckFromPool(valueStr, v)
+					if er != nil {
+						return false,
+							fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", typeName, i, v, er.Error()),
+							errors.New(fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' throws an error '%s'", typeName, i, v, er.Error()))
+					}
+					if !ok {
+						return false,
+							fmt.Sprintf("while validating field '%s', regex group['%d'] regex pool key '%s' but got unmatched value '%s'", typeName, i, v, valueStr),
+							nil
+					}
+				}
+			} else {
+				// rule is regarded as the key itself
+				if !checker.IsContainKey(rule) {
+					return false,
+						fmt.Sprintf("while validating field '%s' regex key '%s' not found in any of default regex pool or add regex pool,you may use '%s' before using it", typeName, rule, "checker.AddRegex('key', '^raw regex$')"),
+						errors.New(fmt.Sprintf("while validating field '%s' regex key '%s' not found in any of default regex pool or add regex pool,you may use '%s' before using it", typeName, rule, "checker.AddRegex('key', '^raw regex$')"))
+				}
+				ok, er := checker.CheckFromPool(valueStr, rule)
+				if er != nil {
+					return false,
+						fmt.Sprintf("while validating field '%s' regex pool key '%s' throws an error '%s'", typeName, rule, er.Error()),
+						er
+				}
+				if !ok {
+					return false,
+						fmt.Sprintf("while validating field '%s' regex pool key '%s' but got unmatched value '%s'", typeName, rule, valueStr),
+						nil
+				}
+			}
+		}
+		return true, "success", nil
+	}
+
+	var ok1, ok2, ok3, ok bool
+	// type validate including:
+	// func validate,
+	// int,float,time validate
+	_, ok1 = value.(time.Time)
+	_, ok3 = value.(jsoncrack.Time)
+	ok2 = strings.Split(tagValue, ",")[0] == "time.time"
+	ok = ok1 || ok2 || ok3
+	if ok && strings.Contains(tagValue, ",") && strings.Split(tagValue, ",")[1] != "" {
+		valueStr = ToString(value, strings.Split(tagValue, ",")[1])
+	} else {
+		valueStr = ToString(value)
+	}
+
+	if valueStr == "undefined" || valueStr == "undefine" || valueStr == "" {
+		return true, "success", nil
+	}
+
+	if strings.Contains(tagValue, ",") {
+		tmp = strings.Split(tagValue, ",")
+		tagValue = tmp[0]
+		rule = strings.Join(tmp[1:], ",")
+		if isFunc(tagValue) {
+			if len(tmp) < 2 {
+				return false,
+					fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length more than 2,but got '%s' length is %d", typeName, tagValue, len(tmp)),
+					errors.New(fmt.Sprintf("'%s' is validated as 'func', the tag 'validate' must has its tag value length more than 2,but got '%s' length %d", typeName, tagValue, len(tmp)))
+			}
+
+			if len(tmp) == 2 {
+				if arr := strings.Split(rule, "|"); len(arr) > 1 {
+					// validate:func,key1|key2|key3
+					for j, r := range arr {
+						if !checker.ContainFunc(r) {
+							return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", typeName, j, r),
+								errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", typeName, j, r))
+						}
+						ok, msg, er := checker.GetFunc(r).Value(value, typeName)
+						if ok {
+							return true, "success", nil
+						}
+						if j >= len(arr)-1 {
+							return ok, msg, er
+						}
+						continue
+					}
+				} else {
+					// validate:func,key1
+					if !checker.ContainFunc(rule) {
+						return false, fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule),
+							errors.New(fmt.Sprintf("'%s' func has not be added into func pool,use checker.AddFunc() to register", rule))
+					}
+					ok, msg, er := checker.GetFunc(rule).Value(value, typeName)
+					if ok {
+						return true, "success", nil
+					}
+					return ok, msg, er
+				}
+			} else {
+				// validate:func,key1,key2,key3,key4
+				rules := strings.Split(rule, ",")
+				for j, r := range rules {
+					if !checker.ContainFunc(r) {
+						return false, fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", typeName, j, r),
+							errors.New(fmt.Sprintf("while validating field '%s', func group[%d] '%s' func has not be added into func pool,use checker.AddFunc() to register", typeName, j, r))
+					}
+					ok, msg, er := checker.GetFunc(r).Value(value, typeName)
+					if !ok {
+						return ok, msg, er
+					}
+					if j == len(rules)-1 {
+						return true, "success", nil
+					}
+				}
+			}
+
+		} else if IsInt(tagValue) {
+			if rule != "" {
+				tmp2 := strings.Split(rule, ":")
+				if len(tmp2) != 2 {
+					return false, "", errors.New("notation requires number1:number2,but got " + rule)
+				}
+				v, er := strconv.Atoi(valueStr)
+				if er != nil {
+					return false, typeName + " format required int but got " + valueStr, nil
+				}
+				if tmp2[0] != "" {
+					min, er := strconv.Atoi(tmp2[0])
+					if er != nil {
+						return false, "", errors.New(typeName + " notation rule required number:number but get " + tmp2[0])
+					}
+					if v < min {
+						return false, typeName + " int value required bigger than " + tmp2[0] + " but get " + valueStr, nil
+					}
+				}
+				if tmp2[1] != "" {
+					max, er := strconv.Atoi(tmp2[1])
+					if er != nil {
+						return false, "", errors.New(typeName + " notation rule required number:number but get " + tmp2[1])
+					}
+					if v > max {
+						return false, typeName + " int value required smaller than " + tmp2[1] + " but get " + valueStr, nil
+					}
+				}
+
+			} else {
+				_, er := strconv.Atoi(valueStr)
+				if er != nil {
+					return false, typeName + " format required int but got " + valueStr, nil
+				}
+			}
+		} else if IsFloat(tagValue) {
+			if rule != "" {
+				tmp2 := strings.Split(rule, ":")
+				if len(tmp2) != 2 {
+					return false, "", errors.New(" notation requires float_number1:float_number2,but got " + rule)
+				}
+				v, er := strconv.ParseFloat(valueStr, 64)
+				if er != nil {
+					return false, typeName + " format required float but got " + valueStr, nil
+				}
+				if tmp2[0] != "" {
+					min, er := strconv.ParseFloat(tmp2[0], 64)
+					if er != nil {
+						return false, "", errors.New(typeName + " notation rule required float_number:float_number but got " + tmp2[0])
+					}
+					if v < min {
+						return false, typeName + " float value required bigger than" + tmp2[0] + " but got " + valueStr, nil
+					}
+				}
+				if tmp2[1] != "" {
+					max, er := strconv.ParseFloat(tmp2[1], 64)
+					if er != nil {
+						return false, "", errors.New(typeName + " notation rule required number:number but got " + tmp2[1])
+					}
+					if v > max {
+						return false, typeName + " float value required smaller than " + tmp2[1] + " but got " + valueStr, nil
+					}
+				}
+			} else {
+				_, er := strconv.ParseFloat(valueStr, 64)
+				if er != nil {
+					return false, typeName + "format required float but got " + valueStr, nil
+				}
+			}
+		} else if tagValue == "time.time" || tagValue=="time.Time" {
+			//"2006/1/2 15:04:05"
+			if rule != "" {
+				_, er := time.ParseInLocation(rule, valueStr, time.Local)
+				if er != nil {
+					return false, fmt.Sprintf("while validating field '%s', time format requires %s but go %s", typeName, rule, valueStr), nil
+				}
+			} else {
+				_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
+				if er != nil {
+					return false, fmt.Sprintf("while validating field '%s', time format requires %s but go %s", typeName, rule, valueStr), nil
+				}
+			}
+		}
+	} else {
+		if IsInt(tagValue) {
+			_, er := strconv.Atoi(valueStr)
+			if er != nil {
+				return false, typeName + "format required int but got " + valueStr, nil
+			}
+		} else if IsFloat(tagValue) {
+			_, er := strconv.ParseFloat(valueStr, 64)
+			if er != nil {
+				return false, typeName + "format required float but got " + valueStr, nil
+			}
+
+		} else if tagValue == "time.Time" {
+			//"2006/1/2 15:04:05"
+			_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
+			if er != nil {
+				return false, fmt.Sprintf("while validating field '%s', the value got '%s' ,time parse throws an error '%s'", typeName, valueStr, er.Error()), nil
+			}
+		}
+	}
+	return true, "success", nil
 }
 
 // int type assertion
