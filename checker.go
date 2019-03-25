@@ -464,7 +464,7 @@ L:
 		// int,float,time validate
 		_, ok1 = value.(time.Time)
 		_, ok3 = value.(jsoncrack.Time)
-		ok2 = in(strings.Split(tagValue, ",")[0],"time.time", "time.Time")
+		ok2 = in(strings.Split(tagValue, ",")[0], "time.time", "time.Time")
 		ok = ok1 || ok2 || ok3
 		if ok && strings.Contains(tagValue, ",") && strings.Split(tagValue, ",")[1] != "" {
 			valueStr = ToString(value, strings.Split(tagValue, ",")[1])
@@ -603,7 +603,7 @@ L:
 						return false, vType.Field(i).Name + "format required float but got " + valueStr, nil
 					}
 				}
-			} else if in(tagValue , "time.time", "time.Time") {
+			} else if in(tagValue, "time.time", "time.Time") {
 				//"2006/1/2 15:04:05"
 				if rule != "" {
 					_, er := time.ParseInLocation(rule, valueStr, time.Local)
@@ -629,7 +629,7 @@ L:
 					return false, vType.Field(i).Name + "format required float but got " + valueStr, nil
 				}
 
-			} else if in(tagValue , "time.Time", "time.time") {
+			} else if in(tagValue, "time.Time", "time.time") {
 				//"2006/1/2 15:04:05"
 				_, er := time.ParseInLocation("2006/1/2 15:04:05", valueStr, time.Local)
 				if er != nil {
@@ -878,23 +878,23 @@ func (checker *Checker) ValidateByTagKeyAndMapValue(dest interface{}, tagKey str
 	var e error
 
 	for i := 0; i < vvalue.NumField(); i ++ {
-		tagKeyValue = strings.Split(vtype.Field(i).Tag.Get(tagKey),",")[0]
+		tagKeyValue = strings.Split(vtype.Field(i).Tag.Get(tagKey), ",")[0]
 		if tagKeyValue == "" || tagKeyValue == "-" {
 			continue
 		}
-		tagValue, ok =tags[tagKeyValue]
+		tagValue, ok = tags[tagKeyValue]
 		if !ok {
 			continue
 		}
 
 		typeName = vtype.Field(i).Name
-        ok,msg, e =checker.ValidateOne(typeName, vvalue.Field(i).Interface(), tagValue)
-        if ok && e==nil{
-        	continue
+		ok, msg, e = checker.ValidateOne(typeName, vvalue.Field(i).Interface(), tagValue)
+		if ok && e == nil {
+			continue
 		}
-        return ok,msg,e
+		return ok, msg, e
 	}
-    return true, "success", nil
+	return true, "success", nil
 }
 
 func (checker *Checker) ValidateOne(typeName string, value interface{}, tagValue string) (bool, string, error) {
@@ -1196,7 +1196,7 @@ func (checker *Checker) ValidateOne(typeName string, value interface{}, tagValue
 					return false, typeName + "format required float but got " + valueStr, nil
 				}
 			}
-		} else if tagValue == "time.time" || tagValue=="time.Time" {
+		} else if tagValue == "time.time" || tagValue == "time.Time" {
 			//"2006/1/2 15:04:05"
 			if rule != "" {
 				_, er := time.ParseInLocation(rule, valueStr, time.Local)
