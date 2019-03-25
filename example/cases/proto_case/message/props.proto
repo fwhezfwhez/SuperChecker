@@ -1,0 +1,19 @@
+syntax = "proto2";
+package messages;
+
+message ProMiniGameShopPropListRequest {
+    enum MSGID {ID=660;}
+    optional int32 message_id = 2;
+    optional int32 game_id = 3;             //平台ID
+    optional int32 platform_id = 4;
+    optional MiniGamePageType page_type = 5;        //商城页签类型
+}
+enum MiniGamePageType {
+    MINIGAME_SHOP_PAGE_UNDEFINE = 0;     //跳0，弃用
+    MINIGAME_SHOP_PAGE_HEAD = 1;         //头像
+    MINIGAME_SHOP_PAGE_PROP = 2;         //道具
+    MINIGAME_SHOP_PAGE_EXCHANGE = 3;     //兑换
+
+    MINIGAME_SHOP_PAGE_GOLD = 4; // 金币
+    MINIGAME_SHOP_PAGE_DIAMOND = 5; // 钻石
+}
