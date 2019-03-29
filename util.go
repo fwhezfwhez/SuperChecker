@@ -34,7 +34,11 @@ func ToString(arg interface{}, timeFormat ...string) string {
 		log.SetFlags(log.Llongfile | log.LstdFlags)
 		log.Println(errors.New(fmt.Sprintf("timeFormat's length should be one")))
 	}
-	var tmp = reflect.Indirect(reflect.ValueOf(arg)).Interface()
+	reflectArg := reflect.ValueOf(arg)
+	if reflectArg.IsNil() {
+		return ""
+	}
+	var tmp = reflect.Indirect(reflectArg).Interface()
 	switch v := tmp.(type) {
 	case int:
 		return strconv.Itoa(v)
