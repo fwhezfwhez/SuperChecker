@@ -468,5 +468,8 @@ func main() {
     fmt.Println(ok, msg)
 }
 ```
+#### 4.5 validate data without noting tags nor 'validate' key.
+```main
 
+```
 **More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**

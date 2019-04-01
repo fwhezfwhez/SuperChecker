@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"log"
-	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -223,9 +222,6 @@ func (e *Employee) String() string {
 }
 func TestEnum(t *testing.T) {
 	var day = Friday
-	fmt.Println(day)
-	fmt.Println(reflect.TypeOf(day))
-	fmt.Println(reflect.ValueOf(day).Interface())
 	var em = Employee{
 		RestDay: &day,
 	}
