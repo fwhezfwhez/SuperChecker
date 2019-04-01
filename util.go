@@ -92,3 +92,7 @@ func in(value string, arr ...string)bool{
 	}
     return false
 }
+
+
+
+var a = 5
