@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/fwhezfwhez/superChecker"
-	"github.com/fwhezfwhez/superChecker/example/cases/proto_case/message"
+	"github.com/fwhezfwhez/SuperChecker"
+	"github.com/fwhezfwhez/SuperChecker/example/cases/proto_case/message"
 	"github.com/golang/protobuf/proto"
 )
 

@@ -83,7 +83,7 @@ package main
 import (
     "fmt"
     "github.com/shopspring/decimal"
-    "github.com/fwhezfwhez/superChecker"
+    "github.com/fwhezfwhez/SuperChecker"
 )
 
 type Animal struct{
