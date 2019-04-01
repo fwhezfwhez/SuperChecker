@@ -35,7 +35,9 @@ func ToString(arg interface{}, timeFormat ...string) string {
 		log.Println(errors.New(fmt.Sprintf("timeFormat's length should be one")))
 	}
 	reflectArg := reflect.ValueOf(arg)
-	if reflectArg.IsNil() {
+	reflectType := reflect.TypeOf(arg)
+
+	if reflectType.Kind().String() == "ptr" && reflectArg.IsNil() {
 		return ""
 	}
 	var tmp = reflect.Indirect(reflectArg).Interface()
