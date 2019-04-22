@@ -1,6 +1,7 @@
 package superChecker
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
 	"log"
@@ -230,4 +231,63 @@ func TestEnum(t *testing.T) {
 		"rest_day": "range,[1:7]",
 	})
 	fmt.Println(ok, msg, e)
+}
+
+func TestRange(t *testing.T){
+	sp := GetChecker()
+	type ShopConfig struct {
+		Id            int             `gorm:"column:id;default:" json:"id" form:"id"`
+		GameId        int             `gorm:"column:game_id;default:" json:"game_id" form:"game_id"`
+		PlatformId    int             `gorm:"column:platform_id;default:" json:"platform_id" form:"platform_id"`
+		PageType      int             `gorm:"column:page_type;default:" json:"page_type" form:"page_type"`
+		PropConfigId  int             `gorm:"column:prop_config_id;default:" json:"prop_config_id" form:"prop_config_id"`
+		PropPriceMeal json.RawMessage `gorm:"column:prop_price_meal;default:" json:"prop_price_meal" form:"prop_price_meal"`
+		Position      int             `gorm:"column:position;default:" json:"position" form:"position"`
+		Status        int             `gorm:"column:status;default:" json:"status" form:"status"`
+	}
+	sc := ShopConfig{
+		PropPriceMeal:json.RawMessage(`{
+         "cost_num": 10
+         }`),
+	}
+	type PriceMeal struct {
+		Type       string `json:"type"`
+		CostNum    int    `json:"cost_num"`
+		PropBuyNum int    `json:"prop_buy_num"`
+		PropBuyDay int    `json:"prop_buy_day"`
+	}
+	var pm PriceMeal
+	e := json.Unmarshal(sc.PropPriceMeal, &pm)
+	if e != nil {
+		fmt.Println(e.Error())
+		t.Fail()
+		return
+	}
+	//ok,msg,e := sp.ValidateByTagKeyAndMapValue(pm, "json", map[string]string{
+	//	"type":"range,[gold,money,diamond]",
+	//	"cost_num":"int,0:",
+	//	"prop_buy_num":"int,0:",
+	//	"prop_buy_day":"int,-1:",
+	//})
+	ok,msg,e := sp.ValidateOne("type", pm.Type, "range,[gold,money,diamond]")
+	if e!=nil {
+		fmt.Println(e.Error())
+		t.Fail()
+		return
+	}
+	if !ok {
+		fmt.Println(msg)
+		t.Fail()
+		return
+	}
+
+}
+
+func TestRangeZero(t *testing.T) {
+	sp := GetChecker()
+	ok, msg, e := sp.ValidateOne("type", 5, "range,[0]")
+	fmt.Println(ok,msg,e)
+
+	ok, msg, e = sp.ValidateOne("type", "", "range,[]")
+	fmt.Println(ok,msg,e)
 }

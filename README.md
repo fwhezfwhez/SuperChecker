@@ -1,5 +1,5 @@
 <p align="center">
-	<a href="github.com/fwhezfwhez/SuperChecker"><img src="http://pmwtw0o0r.bkt.clouddn.com/1%281%29.png" width="450"></a>
+	<a href="github.com/fwhezfwhez/SuperChecker"><img src="http://i2.bvimg.com/684630/aee6f767446231cb.png" width="450"></a>
 </p>
 
 <p align="center">
