@@ -11,20 +11,20 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [superchecker](#superchecker)
-  - [1. Start](#1-start)
-  - [2. Tips](#2-tips)
-      - [2.1 The tag 'superChecker' has stopped developing](#21-the-tag-superchecker-has-stopped-developing)
-      - [2.2 There are some built-in regex key, case-not-sensitive](#22-there-are-some-built-in-regex-key-case-not-sensitive)
-      - [2.3 regex key combining](#23-regex-key-combining)
-  - [3. Example](#3-example)
-      - [3.1 superChecker tag example(this tag is stoped developing,and replaced by validate, the old usage is still access)](#31-superchecker-tag-examplethis-tag-is-stoped-developingand-replaced-by-validate-the-old-usage-is-still-access)
-      - [3.2 validate tag example](#32-validate-tag-example)
-  - [4. FAQ](#4-faq)
-      - [4.1 How to specific superchecker tag?](#41-how-to-specific-superchecker-tag)
-      - [4.2 How to specific validate tag?](#42-how-to-specific-validate-tag)
-      - [4.3 How to design a function to validate data?](#43-how-to-design-a-function-to-validate-data)
-      - [4.4 How to validate a model by its method and the model as receiver](#44-how-to-validate-a-model-by-its-method-and-the-model-as-receiver)
+- [1. Start](#1-start)
+- [2. Tips](#2-tips)
+    - [2.1 The tag 'superChecker' has stopped developing](#21-the-tag-superchecker-has-stopped-developing)
+    - [2.2 There are some built-in regex key, case-not-sensitive](#22-there-are-some-built-in-regex-key-case-not-sensitive)
+    - [2.3 regex key combining](#23-regex-key-combining)
+- [3. Example](#3-example)
+    - [3.1 superChecker tag example(this tag is stoped developing,and replaced by validate, the old usage is still access)](#31-superchecker-tag-examplethis-tag-is-stoped-developingand-replaced-by-validate-the-old-usage-is-still-access)
+    - [3.2 validate tag example](#32-validate-tag-example)
+- [4. FAQ](#4-faq)
+    - [4.1 How to specific superchecker tag?](#41-how-to-specific-superchecker-tag)
+    - [4.2 How to specific validate tag?](#42-how-to-specific-validate-tag)
+    - [4.3 How to design a function to validate data?](#43-how-to-design-a-function-to-validate-data)
+    - [4.4 How to validate a model by its method and the model as receiver](#44-how-to-validate-a-model-by-its-method-and-the-model-as-receiver)
+    - [4.5 validate data without adding tags(using existed tag key).](#45-validate-data-without-adding-tagsusing-existed-tag-key)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -468,8 +468,23 @@ func main() {
     fmt.Println(ok, msg)
 }
 ```
-#### 4.5 validate data without noting tags nor 'validate' key.
+#### 4.5 validate data without adding tags(using existed tag key).
 ```main
-
+func main() {
+    type User struct{
+        Username string `json:"username"`
+        Age int `json:"age"`
+    }
+	var req = User{
+        Username: "superchecker",
+        Age:-1,
+	}
+	sp := superChecker.GetChecker()
+	ok, msg, e := sp.ValidateByTagKeyAndMapValue(req, "json", map[string]string{
+		"username": "regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$",
+		"age": "int,0:200",
+	})
+	fmt.Println(ok, msg, e)
+}
 ```
 **More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**
