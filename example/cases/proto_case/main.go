@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/fwhezfwhez/superChecker"
+	"github.com/fwhezfwhez/SuperChecker"
 )
 
 //
