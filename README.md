@@ -1,10 +1,10 @@
 <p align="center">
-	<a href="github.com/fwhezfwhez/SuperChecker"><img src="http://i2.bvimg.com/684630/aee6f767446231cb.png" width="450"></a>
+    <a href="github.com/fwhezfwhez/SuperChecker"><img src="http://i2.bvimg.com/684630/aee6f767446231cb.png" width="450"></a>
 </p>
 
 <p align="center">
-	<a href="https://godoc.org/github.com/fwhezfwhez/SuperChecker"><img src="http://img.shields.io/badge/godoc-reference-blue.svg?style=flat"></a>
-	<a href="https://www.travis-ci.org/fwhezfwhez/SuperChecker"><img src="https://www.travis-ci.org/fwhezfwhez/SuperChecker.svg?branch=master"></a>
+    <a href="https://godoc.org/github.com/fwhezfwhez/SuperChecker"><img src="http://img.shields.io/badge/godoc-reference-blue.svg?style=flat"></a>
+    <a href="https://www.travis-ci.org/fwhezfwhez/SuperChecker"><img src="https://www.travis-ci.org/fwhezfwhez/SuperChecker.svg?branch=master"></a>
 </p>
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -475,16 +475,16 @@ func main() {
         Username string `json:"username"`
         Age int `json:"age"`
     }
-	var req = User{
+    var req = User{
         Username: "superchecker",
         Age:-1,
-	}
-	sp := superChecker.GetChecker()
-	ok, msg, e := sp.ValidateByTagKeyAndMapValue(req, "json", map[string]string{
-		"username": "regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$",
-		"age": "int,0:200",
-	})
-	fmt.Println(ok, msg, e)
+    }
+    sp := superChecker.GetChecker()
+    ok, msg, e := sp.ValidateByTagKeyAndMapValue(req, "json", map[string]string{
+        "username": "regex,^[\u4E00-\u9FA5a-zA-Z0-9_.]{0,40}$",
+        "age": "int,0:200",
+    })
+    fmt.Println(ok, msg, e)
 }
 ```
 **More tips on developing and if you want to help contribute,please fork and pull request. More issues please hand in in issue part.3q**
